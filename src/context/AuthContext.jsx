@@ -1,79 +1,71 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getMe, login as loginApi, logoutApi, register as registerApi } from '../api/auth.api';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import authService from "../services/authService";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // استعادة الجلسة والتحقق من المستخدم عند فتح الموقع
-  const fetchSession = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const data = await getMe();
-      setUser(data.user || data);
-    } catch {
-      localStorage.removeItem('token');
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // فحص الجلسة الأوتوماتيكي عند إقلاع التطبيق (Bootstrap)
   useEffect(() => {
-    fetchSession();
+    const bootstrapSession = async () => {
+      try {
+        const data = await authService.getMe();
+        if (data?.user) {
+          setUser(data.user);
+        } else if (data?.data) {
+          setUser(data.data);
+        }
+      } catch (err) {
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    bootstrapSession();
   }, []);
 
-  // دالة تسجيل الدخول
-  const loginUser = async (credentials) => {
-    const data = await loginApi(credentials);
-    if (data?.token) {
-      localStorage.setItem('token', data.token);
-    }
-    setUser(data.user || data);
-    return data;
+  const loginUser = (userData) => {
+    setUser(userData);
   };
 
-  // دالة تسجيل الخروج
   const logoutUser = async () => {
     try {
-      await logoutApi();
-    } catch {
-      // المضي قدماً في مسح التوكن محلياً حتى لو فشل السيرفر
+      await authService.logout();
+    } catch (err) {
+      console.error("Logout error", err);
     } finally {
-      localStorage.removeItem('token');
+      localStorage.removeItem("token");
       setUser(null);
     }
   };
 
-  // دالة تسجيل حساب جديد
-  const registerUser = async (userData) => {
-    const data = await registerApi(userData);
-    if (data?.token) {
-      localStorage.setItem('token', data.token);
-    }
-    setUser(data.user || data);
-    return data;
-  };
+  const isAdmin = user?.role === "admin";
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginUser, logoutUser, registerUser, setUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated: !!user,
+        isAdmin,
+        loginUser,
+        logoutUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-}; // <--- هنا الإغلاق الصحيح لـ AuthProvider
+};
 
-// Custom Hook لسهولة الاستخدام في أي مكان
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
+
+export default AuthContext;
