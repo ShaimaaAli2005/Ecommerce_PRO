@@ -1,0 +1,35 @@
+{
+  "app_name": "Koda Store",
+  "common": {
+    "loading": "Loading...",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search...",
+    "actions": "Actions",
+    "back_to_home": "Back to Home",
+    "status": "Status",
+    "price": "Price",
+    "quantity": "Quantity",
+    "total": "Total"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "email": "Email Address",
+    "password": "Password",
+    "otp_sent": "Verification OTP sent to your email"
+  },
+  "status": {
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "processing": "Processing",
+    "shipped": "Shipped",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled",
+    "returned": "Returned"
+  }
+}

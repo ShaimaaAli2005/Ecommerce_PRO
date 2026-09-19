@@ -11,14 +11,12 @@ export const ProtectedRoute = ({ requireAdmin = true }) => {
     return <PageLoader />;
   }
 
-  if (!isAuthenticated) {
-    // التوجيه إلى صفحة دخول المشرف إذا كان المسار يخص الإدارة
+  if (!isAuthenticated || !user) {
     const redirectPath = requireAdmin ? "/admin/login" : "/login";
     return <Navigate to={redirectPath} state={{ from: location }} replace />;
   }
 
   if (requireAdmin && !isAdmin) {
-    // إذا كان مسجلاً كـ Customer وحاول دخول الأدمن، يتم نقله لصفحة غير مصرح بها أو الرئيسية
     return <Navigate to="/" replace />;
   }
 

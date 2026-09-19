@@ -30,17 +30,17 @@ const AdminOrderDetail = lazy(() => import("../pages/admin/orders/AdminOrderDeta
 const AdminCartsPage = lazy(() => import("../pages/admin/carts/AdminCartsPage"));
 const AdminUsersPage = lazy(() => import("../pages/admin/users/AdminUsersPage"));
 
-// ─── Fallback & Error ───
+// ─── Universal Fallback Page ───
 const NotFound = lazy(() => import("../pages/NotFound"));
 
 export const AppRoutes = () => {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        {/* مسار دخول الإدارة المنفصل */}
+        {/* مسار تسجيل دخول المشرف المنفصل */}
         <Route path="/admin/login" element={<AdminLogin />} />
 
-        {/* مسارات المتجر العام للعملاء */}
+        {/* مسارات متجر العملاء العام (Storefront Layout) */}
         <Route element={<StoreLayout />}>
           <Route path="/" element={<StoreCatalog />} />
           <Route path="/products" element={<StoreCatalog />} />
@@ -51,7 +51,7 @@ export const AppRoutes = () => {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
-          {/* مسارات العميل المحمية (تشترط تسجيل الدخول فقط) */}
+          {/* مسارات العميل المحمية بتسجيل الدخول */}
           <Route element={<ProtectedRoute requireAdmin={false} />}>
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/order-success" element={<OrderSuccess />} />
@@ -60,7 +60,7 @@ export const AppRoutes = () => {
           </Route>
         </Route>
 
-        {/* مسارات لوحة التحكم المحمية حصرياً للمشرفين */}
+        {/* مسارات لوحة التحكم الإدارية المحمية بصلاحيات الأدمن */}
         <Route element={<ProtectedRoute requireAdmin={true} />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
@@ -76,7 +76,7 @@ export const AppRoutes = () => {
           </Route>
         </Route>
 
-        {/* صفحة الخطأ 404 لكافة الروابط غير المعرفة */}
+        {/* مسار الصفحة غير الموجودة */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
