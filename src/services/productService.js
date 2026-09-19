@@ -1,42 +1,100 @@
-import api from '../api/axios';
+import axiosInstance from "../api/axiosInstance";
 
-// 1. الدالة الفردية لجلب تفاصيل منتج محدد
+/**
+ * جلب المنتجات مع دعم الفلاتر والفرز (price_asc, price_desc, rating)
+ * GET /products
+ */
+export const getAllProducts = async (params = {}) => {
+  const response = await axiosInstance.get("/products", { params });
+  return response.data;
+};
+
+/**
+ * بحث متقدم بالكلمات المفتاحية والتاجات ونطاق السعر والفرز
+ * GET /products/search
+ */
+export const searchProducts = async (params = {}) => {
+  const response = await axiosInstance.get("/products/search", { params });
+  return response.data;
+};
+
+/**
+ * جلب تفاصيل منتج محدد مع المراجعات والمنشئ
+ * GET /products/{id}
+ */
 export const getProductById = async (id) => {
-  const response = await api.get(`/products/${id}`);
-  return response.data?.product || response.data?.data || response.data;
-};
-
-// 2. دالة جلب المنتجات مع الفلترة والترقيم
-export const getProducts = async (params = {}) => {
-  const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
-    if (value !== '' && value !== null && value !== undefined) {
-      acc[key] = value;
-    }
-    return acc;
-  }, {});
-
-  const response = await api.get('/products', { params: cleanParams });
+  const response = await axiosInstance.get(`/products/${id}`);
   return response.data;
 };
 
-// 3. جلب مراجعات وتقييمات المنتج
-export const getProductReviews = async (id) => {
-  const response = await api.get(`/products/${id}/reviews`);
+/**
+ * إضافة منتج جديد مع وسائط Cloudinary (حد أقصى 5 صور)
+ * POST /products (multipart/form-data)
+ */
+export const addProduct = async (formData) => {
+  const response = await axiosInstance.post("/products", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return response.data;
 };
 
-// 4. إضافة تقييم ومراجعة للمنتج
-export const addProductReview = async (id, data) => {
-  const response = await api.post(`/products/${id}/reviews`, data);
+/**
+ * تعديل منتج قائم ومسح صور قديمة عبر deletedImages
+ * PATCH /products/update/{id} (multipart/form-data)
+ */
+export const updateProduct = async (id, formData) => {
+  const response = await axiosInstance.patch(`/products/update/${id}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return response.data;
 };
 
-// 5. التصدير الافتراضي الموحد لدعم أسلوبي الاستدعاء (Named & Default)
-const productService = {
-  getProducts,
+/**
+ * حذف منتج ومسح وسائطه من Cloudinary نهائياً
+ * DELETE /products/{id}
+ */
+export const deleteProduct = async (id) => {
+  const response = await axiosInstance.delete(`/products/${id}`);
+  return response.data;
+};
+
+/**
+ * استعراض مراجعات وتقييمات المنتج
+ * GET /products/{id}/reviews
+ */
+export const getProductReviews = async (productId, params = {}) => {
+  const response = await axiosInstance.get(`/products/${productId}/reviews`, { params });
+  return response.data;
+};
+
+/**
+ * إضافة مراجعة للمنتج (تقييم 1-5 وتعليق)
+ * POST /products/{id}/reviews
+ */
+export const addProductReview = async (productId, reviewData) => {
+  const response = await axiosInstance.post(`/products/${productId}/reviews`, reviewData);
+  return response.data;
+};
+
+/**
+ * حذف مراجعة محددة
+ * DELETE /products/{id}/reviews/{reviewId}
+ */
+export const deleteProductReview = async (productId, reviewId) => {
+  const response = await axiosInstance.delete(`/products/${productId}/reviews/${reviewId}`);
+  return response.data;
+};
+
+export const productService = {
+  getAllProducts,
+  searchProducts,
   getProductById,
+  addProduct,
+  updateProduct,
+  deleteProduct,
   getProductReviews,
   addProductReview,
+  deleteProductReview,
 };
 
 export default productService;
