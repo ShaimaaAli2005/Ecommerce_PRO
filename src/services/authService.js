@@ -47,6 +47,10 @@ export const logout = async () => {
  * GET /auth/me
  */
 export const getMe = async () => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    return null; // تجنب إرسال طلب غير مصرح به إن لم يكن هناك تسجيل دخول
+  }
   const response = await axiosInstance.get("/auth/me");
   return response.data;
 };

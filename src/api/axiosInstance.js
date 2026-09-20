@@ -4,7 +4,7 @@ const API_BASE_URL =
   import.meta.env.VITE_API_URL || "https://e-commerce-api-3wara.vercel.app";
 
 const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: "/api",
   headers: {
     "Content-Type": "application/json",
   },
