@@ -1,6 +1,5 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import LanguageDetector from "i18next-browser-languagedetector";
 
 import arTranslation from "./ar/translation.json";
 import enTranslation from "./en/translation.json";
@@ -10,25 +9,28 @@ const resources = {
   en: { translation: enTranslation },
 };
 
-i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources,
-    fallbackLng: "ar",
-    interpolation: {
-      escapeValue: false,
-    },
-    detection: {
-      order: ["localStorage", "navigator"],
-      caches: ["localStorage"],
-    },
-  });
+const savedLang = localStorage.getItem("luma_lang") || "en";
 
-// تحديث اتجاه الصفحة ولغتها تلقائياً عند تغيير اللغة
+const applyDirection = (lng) => {
+  const normalized = lng?.startsWith("ar") ? "ar" : "en";
+  document.documentElement.lang = normalized;
+  document.documentElement.dir = normalized === "ar" ? "rtl" : "ltr";
+  localStorage.setItem("luma_lang", normalized);
+};
+
+i18n.use(initReactI18next).init({
+  resources,
+  lng: savedLang,
+  fallbackLng: "en",
+  interpolation: {
+    escapeValue: false,
+  },
+});
+
+applyDirection(savedLang);
+
 i18n.on("languageChanged", (lng) => {
-  document.documentElement.dir = lng === "ar" ? "rtl" : "ltr";
-  document.documentElement.lang = lng;
+  applyDirection(lng);
 });
 
 export default i18n;

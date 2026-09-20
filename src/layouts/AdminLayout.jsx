@@ -1,40 +1,31 @@
+import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
-import Navbar from "./components/AdminNavbar.jsx";
-import Sidebar from "./components/Sidebar.jsx";
+import Sidebar from "./components/Sidebar";
+import AdminNavbar from "./components/AdminNavbar";
 
-function AdminLayout() {
+const AdminLayout = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <div
-      className="
-        min-h-screen
-        bg-[#F7F5F0]
-        text-[#1F2937]
-        transition-colors duration-300
+    <div className="min-h-screen bg-surface-base dark:bg-surface-dark flex text-text-main dark:text-text-inverse transition-colors duration-200">
+      {/* القائمة الجانبية */}
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
-        dark:bg-[#111827]
-        dark:text-white
-      "
-    >
-      <Navbar />
+      {/* منطقة المحتوى بجانب السايدبار */}
+      <div className="flex-1 flex flex-col ltr:lg:pl-64 rtl:lg:pr-64 min-w-0">
+        <AdminNavbar
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+        />
 
-      <Sidebar />
-
-      <main
-        className="
-          ml-60
-          min-h-screen
-          p-6
-          pt-24
-          transition-colors duration-300
-
-          dark:bg-[#111827]
-          dark:text-white
-        "
-      >
-        <Outlet />
-      </main>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
-}
+};
 
 export default AdminLayout;
