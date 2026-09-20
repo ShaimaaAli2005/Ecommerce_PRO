@@ -1,5 +1,8 @@
 {
+
+
   "app_name": "LUMA Store",
+
   "common": {
     "loading": "Loading...",
     "confirm": "Confirm",
@@ -11,6 +14,8 @@
     "actions": "Actions",
     "back_to_home": "Back to Home",
     "status": "Status",
+
+
     "retry": "Retry",
     "price": "Price",
     "quantity": "Quantity",
@@ -22,6 +27,7 @@
     "guest_client": "Guest Client",
     "close": "Close",
     "copied": "Copied successfully!"
+
   },
   "auth": {
     "login": "Login",
@@ -39,6 +45,7 @@
     "delivered": "Delivered",
     "cancelled": "Cancelled",
     "returned": "Returned"
+
   },
   "admin": {
     "admin_login": {
@@ -468,5 +475,6 @@
       "delete_modal_desc": "Are you sure you want to delete category \"{{name}}\"? This action cannot be undone.",
       "confirm_delete": "Confirm Delete"
     }
+
   }
 }
