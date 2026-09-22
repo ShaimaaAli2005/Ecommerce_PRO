@@ -1,70 +1,76 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import cartService from '../services/cartService';
 import toast from 'react-hot-toast';
-import {
-  getCartApi,
-  addToCartApi,
-  updateCartQuantityApi,
-  removeFromCartApi,
-  clearCartApi,
-} from '../api/cart.api';
 
-export const CartContext = createContext();
-
-const getImg = (prod) => {
-  if (!prod) return '';
-  if (Array.isArray(prod.images) && prod.images.length > 0) {
-    return prod.images[0]?.url || prod.images[0];
-  }
-  return prod.image || prod.imageUrl || '';
-};
+const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  const [items, setItems] = useState(() => {
-    try {
-      const saved = localStorage.getItem('cart_items');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+  const { t, i18n } = useTranslation();
+  const isRtl = (i18n.language || 'ar').startsWith('ar');
+  
+  const [cart, setCart] = useState({
+    items: [],
+    itemCount: 0,
+    subtotal: 0,
+    discountAmount: 0,
+    total: 0,
+    coupon: null
   });
-
-  const [cartTotal, setCartTotal] = useState(0);
-  const [cartCount, setCartCount] = useState(0);
+  
   const [loading, setLoading] = useState(false);
+  
+  // مراجع لتخزين الكميات التراكمية لكل منتج لضمان عدم ضياع أي ضغطة
+  const pendingDeltas = useRef({});
+  const syncTimeouts = useRef({});
 
-  const recalculateCart = useCallback((currentItems) => {
-    const total = currentItems.reduce(
-      (acc, item) => acc + (Number(item.price) || 0) * (Number(item.quantity) || 1),
-      0
-    );
-    const count = currentItems.reduce(
-      (acc, item) => acc + (Number(item.quantity) || 1),
-      0
-    );
-    setCartTotal(total);
-    setCartCount(count);
-    localStorage.setItem('cart_items', JSON.stringify(currentItems));
-  }, []);
-
-  useEffect(() => {
-    recalculateCart(items);
-  }, [items, recalculateCart]);
-
-  const fetchCart = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    try {
-      setLoading(true);
-      const data = await getCartApi();
-      const cartItems = data.items || data.cart?.items || data.products || (Array.isArray(data) ? data : []);
-      if (Array.isArray(cartItems) && cartItems.length > 0) {
-        setItems(cartItems);
+  // دالة دمج المنتجات المتطابقة لمنع تكرار نفس المنتج في القائمة
+  const mergeDuplicateItems = (items) => {
+    if (!Array.isArray(items)) return [];
+    const map = new Map();
+    items.forEach(item => {
+      const rawProd = item.product;
+      const pId = (typeof rawProd === 'object' && rawProd !== null) ? (rawProd._id || rawProd.id) : (rawProd || item._id || item.id);
+      if (!pId) return;
+      
+      const itemIdStr = String(pId);
+      if (map.has(itemIdStr)) {
+        const existing = map.get(itemIdStr);
+        existing.quantity += (Number(item.quantity) || 1);
+      } else {
+        map.set(itemIdStr, { 
+          ...item, 
+          _uniqueKey: itemIdStr,
+          product: itemIdStr 
+        });
       }
-    } catch {
-      console.warn('Backend cart endpoint unavailable, maintaining local cart.');
+    });
+    return Array.from(map.values());
+  };
+
+  // جلب السلة من السيرفر بصمت
+  const fetchCart = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      const res = await cartService.getMyCart();
+      if (res && res.success) {
+        const mergedItems = mergeDuplicateItems(res.items || []);
+        const calculatedCount = mergedItems.reduce((acc, i) => acc + (Number(i.quantity) || 1), 0);
+        const calculatedSubtotal = mergedItems.reduce((acc, i) => acc + (Number(i.price || 0) * (Number(i.quantity) || 1)), 0);
+
+        setCart({
+          items: mergedItems,
+          itemCount: res.itemCount !== undefined ? res.itemCount : calculatedCount,
+          subtotal: res.subtotal !== undefined ? res.subtotal : calculatedSubtotal,
+          discountAmount: res.discountAmount || 0,
+          total: res.total !== undefined ? res.total : calculatedSubtotal,
+          coupon: res.coupon || null
+        });
+      }
+    } catch (err) {
+      // صامت
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -72,125 +78,259 @@ export const CartProvider = ({ children }) => {
     fetchCart();
   }, [fetchCart]);
 
-  const addToCart = async (product, quantity = 1) => {
-    const productId = typeof product === 'object' ? (product._id || product.id) : product;
-    const productName = typeof product === 'object' ? (product.name || product.title || 'Product') : 'Product';
-    const productPrice = typeof product === 'object' 
-      ? (product.discountPrice && product.discountPrice < product.price ? product.discountPrice : product.price) 
-      : 0;
-    const productImage = getImg(product);
+  // إضافة منتج للسلة بتجميع دقيق للضغطات السريعة دون ضياع أي ضغطة
+  const addToCartGlobal = async (productId, quantity = 1) => {
+    const pIdStr = String(productId);
 
-    if (!productId) {
-      toast.error('Product ID missing', { id: 'cart-toast' });
-      return;
-    }
+    // 1. تجميع الضغطات فوراً محلياً لضمان عدم ضياع أي ضغطة (حتى لو ضغطت 100 مرة)
+    pendingDeltas.current[pIdStr] = (pendingDeltas.current[pIdStr] || 0) + quantity;
 
-    setItems((prevItems) => {
-      const existingIndex = prevItems.findIndex(
-        (item) => (item._id || item.id) === productId
-      );
+    // 2. تحديث فوري للواجهة بصرياً
+    setCart(prev => {
+      let updatedItems = [...prev.items];
+      const existingIndex = updatedItems.findIndex(i => String(i.product || i._id) === pIdStr);
+
       if (existingIndex > -1) {
-        return prevItems.map((item, idx) =>
-          idx === existingIndex
-            ? { ...item, quantity: (item.quantity || 1) + quantity }
-            : item
-        );
+        updatedItems[existingIndex] = {
+          ...updatedItems[existingIndex],
+          quantity: updatedItems[existingIndex].quantity + quantity
+        };
+      } else {
+        updatedItems.push({ 
+          product: pIdStr, 
+          _uniqueKey: pIdStr,
+          quantity, 
+          price: 0, 
+          name: "منتج" 
+        });
       }
-      const newItem = {
-        ...(typeof product === 'object' ? product : {}),
-        _id: productId,
-        id: productId,
-        name: productName,
-        price: productPrice,
-        image: productImage,
-        quantity,
+
+      const newCount = prev.itemCount + quantity;
+      const newSubtotal = updatedItems.reduce((acc, i) => acc + (Number(i.price || 0) * i.quantity), 0);
+
+      return {
+        ...prev,
+        items: updatedItems,
+        itemCount: newCount,
+        subtotal: newSubtotal,
+        total: Math.max(0, newSubtotal - (prev.discountAmount || 0))
       };
-      return [...prevItems, newItem];
     });
 
-    toast.success(`${productName} added to cart!`, { id: 'cart-toast' });
+    toast.success(t('store.cart_toast.added_success', 'Item added to cart successfully'));
 
-    // إرسال الكائن بالصيغة القياسية المطلوبة في Swagger
-    try {
-      await addToCartApi({
-        productId: String(productId),
-        quantity: Number(quantity),
-      });
-    } catch {
-      // الاعتماد على التحديث المحلي الفوري
+    // 3. إرسال الحصيلة النهائية للخادم بعد توقف المستخدم عن الضغط بـ 400 ميلي ثانية
+    if (syncTimeouts.current[pIdStr]) {
+      clearTimeout(syncTimeouts.current[pIdStr]);
     }
+
+    syncTimeouts.current[pIdStr] = setTimeout(async () => {
+      const totalDelta = pendingDeltas.current[pIdStr] || 0;
+      pendingDeltas.current[pIdStr] = 0; // تفريغ العداد المؤقت
+
+      if (totalDelta <= 0) return;
+
+      try {
+        const res = await cartService.addToCart(productId, totalDelta);
+        if (res && res.success) {
+          const mergedItems = mergeDuplicateItems(res.items || []);
+          setCart({
+            items: mergedItems,
+            itemCount: res.itemCount || mergedItems.reduce((acc, i) => acc + i.quantity, 0),
+            subtotal: res.subtotal || 0,
+            discountAmount: res.discountAmount || 0,
+            total: res.total || 0,
+            coupon: res.coupon || null
+          });
+        }
+      } catch (err) {
+        const serverMessage = err?.response?.data?.message || '';
+        if (serverMessage.toLowerCase().includes('stock') || serverMessage.toLowerCase().includes('0 items')) {
+          toast.error(isRtl ? 'هذا المنتج غير متاح حالياً (نفد المخزون)' : 'This product is out of stock');
+        } else {
+          toast.error(serverMessage || t('store.cart_toast.add_error', 'Failed to add item'));
+        }
+        fetchCart(true); // مزامنة إجبارية عند الخطأ
+      }
+    }, 400);
   };
 
-  const removeFromCart = async (productId) => {
-    setItems((prevItems) => prevItems.filter((item) => (item._id || item.id) !== productId));
-    toast.success('Item removed from cart', { id: 'cart-toast' });
-
-    try {
-      await removeFromCartApi(productId);
-    } catch {
-      // الاعتماد على التحديث المحلي
-    }
-  };
-
-  const updateQuantity = async (productId, quantity) => {
+  // تحديث كمية منتج
+  const updateQuantityGlobal = async (productId, quantity) => {
     if (quantity <= 0) {
-      await removeFromCart(productId);
-      return;
+      return removeFromCartGlobal(productId);
     }
 
-    setItems((prevItems) =>
-      prevItems.map((item) =>
-        (item._id || item.id) === productId ? { ...item, quantity } : item
-      )
-    );
+    const pIdStr = String(productId);
+
+    setCart(prev => {
+      const updatedItems = prev.items.map(item => {
+        const currentId = String(item.product || item._id);
+        if (currentId === pIdStr) {
+          return { ...item, quantity };
+        }
+        return item;
+      });
+
+      const newSubtotal = updatedItems.reduce((acc, item) => acc + (Number(item.price || 0) * item.quantity), 0);
+      const discount = prev.discountAmount || 0;
+      const newTotal = Math.max(0, newSubtotal - discount);
+      const newCount = updatedItems.reduce((acc, item) => item.quantity, 0);
+
+      return {
+        ...prev,
+        items: updatedItems,
+        itemCount: newCount,
+        subtotal: newSubtotal,
+        total: newTotal
+      };
+    });
+
+    if (syncTimeouts.current[`update_${pIdStr}`]) {
+      clearTimeout(syncTimeouts.current[`update_${pIdStr}`]);
+    }
+
+    syncTimeouts.current[`update_${pIdStr}`] = setTimeout(async () => {
+      try {
+        const res = await cartService.updateCartItem(productId, quantity);
+        if (res && res.success) {
+          const mergedItems = mergeDuplicateItems(res.items || []);
+          setCart(prev => ({
+            ...prev,
+            items: mergedItems,
+            itemCount: res.itemCount !== undefined ? res.itemCount : prev.itemCount,
+            subtotal: res.subtotal !== undefined ? res.subtotal : prev.subtotal,
+            discountAmount: res.discountAmount !== undefined ? res.discountAmount : prev.discountAmount,
+            total: res.total !== undefined ? res.total : prev.total,
+            coupon: res.coupon !== undefined ? res.coupon : prev.coupon
+          }));
+        }
+      } catch (err) {
+        const serverMessage = err?.response?.data?.message || '';
+        if (serverMessage.toLowerCase().includes('stock') || serverMessage.toLowerCase().includes('0 items')) {
+          toast.error(isRtl ? 'الكمية المطلوبة غير متوفرة في المخزون' : 'Requested quantity is not available in stock');
+        } else {
+          toast.error(serverMessage || t('store.cart_toast.update_error', 'Failed to update quantity'));
+        }
+        fetchCart(true);
+      }
+    }, 400);
+  };
+
+  // حذف منتج من السلة فورياً
+  const removeFromCartGlobal = async (productId) => {
+    const pIdStr = String(productId);
+
+    setCart(prev => {
+      const updatedItems = prev.items.filter(item => String(item.product || item._id) !== pIdStr);
+      const newCount = updatedItems.reduce((acc, item) => acc + item.quantity, 0);
+      const newSubtotal = updatedItems.reduce((acc, item) => acc + (Number(item.price || 0) * item.quantity), 0);
+      
+      return {
+        ...prev,
+        items: updatedItems,
+        itemCount: newCount,
+        subtotal: newSubtotal,
+        total: Math.max(0, newSubtotal - (prev.discountAmount || 0))
+      };
+    });
+
+    toast.success(t('store.cart_toast.remove_success', 'Item removed from cart'));
 
     try {
-      await updateCartQuantityApi({
-        productId: String(productId),
-        quantity: Number(quantity),
-      });
-    } catch {
-      // الاعتماد على التحديث المحلي
+      const res = await cartService.removeFromCart(productId);
+      if (res && res.success) {
+        const mergedItems = mergeDuplicateItems(res.items || []);
+        setCart({
+          items: mergedItems,
+          itemCount: res.itemCount || 0,
+          subtotal: res.subtotal || 0,
+          discountAmount: res.discountAmount || 0,
+          total: res.total || 0,
+          coupon: res.coupon || null
+        });
+      }
+    } catch (err) {
+      toast.error(t('store.cart_toast.remove_error', 'Failed to remove item'));
+      fetchCart(true);
     }
   };
 
-  const clearCart = async () => {
-    setItems([]);
-    setCartTotal(0);
-    setCartCount(0);
-    localStorage.removeItem('cart_items');
-    toast.success('Cart cleared', { id: 'cart-toast' });
-
+  // تطبيق كوبون
+  const applyCouponGlobal = async (code) => {
     try {
-      await clearCartApi();
-    } catch {
-      // الاعتماد على التحديث المحلي
+      const res = await cartService.applyCoupon(code);
+      if (res && res.success) {
+        const mergedItems = mergeDuplicateItems(res.items || cart.items);
+        setCart({
+          items: mergedItems,
+          itemCount: res.itemCount || cart.itemCount,
+          subtotal: res.subtotal || cart.subtotal,
+          discountAmount: res.discountAmount || cart.discountAmount,
+          total: res.total || cart.total,
+          coupon: res.coupon || code
+        });
+        toast.success(res.message || t('store.cart_toast.coupon_success', 'Coupon applied successfully!'));
+        return true;
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || t('store.cart_toast.coupon_error', 'Invalid coupon or empty cart'));
+      return false;
+    }
+  };
+
+  // إزالة الكوبون
+  const removeCouponGlobal = async () => {
+    try {
+      const res = await cartService.removeCoupon();
+      if (res && res.success) {
+        setCart(prev => ({
+          ...prev,
+          subtotal: res.subtotal || prev.subtotal,
+          discountAmount: 0,
+          total: res.total || prev.subtotal,
+          coupon: null
+        }));
+        toast.success(t('store.cart_toast.coupon_removed', 'Coupon removed'));
+      }
+    } catch (err) {
+      toast.error(t('store.cart_toast.coupon_remove_error', 'Failed to remove coupon'));
+    }
+  };
+
+  // تفريغ السلة بالكامل
+  const clearCartGlobal = async () => {
+    try {
+      await cartService.clearCart();
+      setCart({
+        items: [],
+        itemCount: 0,
+        subtotal: 0,
+        discountAmount: 0,
+        total: 0,
+        coupon: null
+      });
+      toast.success(t('store.cart_toast.clear_success', 'Cart cleared successfully'));
+    } catch (err) {
+      toast.error(t('store.cart_toast.clear_error', 'Failed to clear cart'));
     }
   };
 
   return (
-    <CartContext.Provider
-      value={{
-        items,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        cartCount,
-        cartTotal,
-        loading,
-        fetchCart,
-      }}
-    >
+    <CartContext.Provider value={{
+      cart,
+      loading,
+      fetchCart,
+      addToCartGlobal,
+      updateQuantityGlobal,
+      removeFromCartGlobal,
+      applyCouponGlobal,
+      removeCouponGlobal,
+      clearCartGlobal
+    }}>
       {children}
     </CartContext.Provider>
   );
 };
 
-export const useCart = () => {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
-  return context;
-};
+export const useCart = () => useContext(CartContext);

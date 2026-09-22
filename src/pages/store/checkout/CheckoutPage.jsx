@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import toast from 'react-hot-toast';
+import { ShieldCheck, Truck, CreditCard, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import orderService from '../../../services/orderService';
+import toast from 'react-hot-toast';
 
-const Checkout = () => {
-  const { t, i18n } = useTranslation(['auth', 'wishlist']);
-  const { items, cartTotal, clearCart } = useCart();
+export default function CheckoutPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = (i18n.language || 'ar').startsWith('ar');
+  const navigate = useNavigate();
+  const { cart, fetchCart } = useCart();
 
-  const currentLang = i18n.language || 'en';
-  const isRtl = currentLang === 'ar';
-
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -20,715 +21,251 @@ const Checkout = () => {
     address: '',
     postalCode: '',
     paymentMethod: 'cash',
-    orderNotes: '',
+    customerNote: ''
   });
-
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(null);
-
-  // حسابات الشحن والضرائب
-  const shipping = cartTotal > 1000 || cartTotal === 0 ? 0 : 50;
-  const tax = cartTotal * 0.14;
-  const finalTotal = cartTotal + (cartTotal > 0 ? shipping : 0) + tax;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    if (errors[name]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: '',
-      }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const validate = () => {
-    const newErrors = {};
-
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = isRtl
-        ? 'الاسم الكامل مطلوب'
-        : 'Full Name is required';
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = isRtl
-        ? 'رقم الهاتف مطلوب'
-        : 'Phone number is required';
-    }
-
-    if (!formData.city.trim()) {
-      newErrors.city = isRtl
-        ? 'المدينة مطلوبة'
-        : 'City is required';
-    }
-
-    if (!formData.address.trim()) {
-      newErrors.address = isRtl
-        ? 'العنوان تفصيلي مطلوب'
-        : 'Address is required';
-    }
-
-    return newErrors;
-  };
-
-  const handleSubmitOrder = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!items || items.length === 0) {
-      toast.error(
-        isRtl ? 'السلة فارغة!' : 'Your cart is empty!'
-      );
+    if (!formData.fullName || !formData.phone || !formData.city || !formData.address) {
+      toast.error(isRtl ? 'يرجى ملء جميع حقول عنوان الشحن الأساسية' : 'Please fill in all required shipping address fields');
       return;
     }
 
-    const validationErrors = validate();
-
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-
-      toast.error(
-        isRtl
-          ? 'برجاء استكمال البيانات المطلوبة'
-          : 'Please fill in all required fields'
-      );
-
+    if (!cart.items || cart.items.length === 0) {
+      toast.error(isRtl ? 'سلة المشتريات فارغة' : 'Your cart is empty');
+      navigate('/cart');
       return;
     }
-
-    setIsSubmitting(true);
 
     try {
-      // البيانات المطلوبة من POST /orders
-      const orderData = {
+      setLoading(true);
+      const orderPayload = {
         shippingAddress: {
           fullName: formData.fullName,
           phone: formData.phone,
           country: formData.country,
           city: formData.city,
           address: formData.address,
-          postalCode: formData.postalCode,
+          postalCode: formData.postalCode || '11511'
         },
         paymentMethod: formData.paymentMethod,
-        customerNote: formData.orderNotes,
+        customerNote: formData.customerNote
       };
 
-      console.log('CREATING ORDER:', orderData);
-
-      // إنشاء Order حقيقي في الـ Backend
-      const response = await orderService.createOrder(orderData);
-
-      console.log('CREATE ORDER RESPONSE:', response);
-
-      // أخذ الـ ID الحقيقي من الـ Backend
-      const createdOrder = response?.order || response?.data || response;
-
-      const orderId =
-        createdOrder?._id ||
-        createdOrder?.id ||
-        response?._id ||
-        response?.id;
-
-      if (!orderId) {
-        throw new Error('Order was created but no order ID was returned.');
+      const response = await orderService.createOrder(orderPayload);
+      if (response && response.success) {
+        toast.success(isRtl ? 'تم إنشاء الطلب بنجاح!' : 'Order created successfully!');
+        await fetchCart(true); // تحديث السلة لتصبح فارغة
+        navigate('/order-success', { state: { order: response.order } });
       }
-
-      setOrderSuccess({
-        id: orderId,
-        total:
-          createdOrder?.totalOrderPrice ??
-          createdOrder?.total ??
-          finalTotal,
-        itemsCount: items.reduce(
-          (acc, item) => acc + (item.quantity || 1),
-          0
-        ),
-        address: `${formData.address}, ${formData.city}, ${formData.country}`,
-      });
-
-      clearCart();
-
-      toast.success(
-        isRtl
-          ? 'تم إرسال طلبك بنجاح!'
-          : 'Order placed successfully!'
-      );
-    } catch (error) {
-     console.error('CREATE ORDER ERROR:', error);
-console.error('SERVER ERROR:', error.response?.data);
-
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        (isRtl
-          ? 'حدث خطأ أثناء إنشاء الطلب'
-          : 'Something went wrong while creating the order');
-
-      toast.error(errorMessage);
+    } catch (err) {
+      const errorMsg = err?.response?.data?.message || (isRtl ? 'فشل إنشاء الطلب، تأكد من بيانات السلة أو المخزون' : 'Failed to create order');
+      toast.error(errorMsg);
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div
-      dir={isRtl ? 'rtl' : 'ltr'}
-      className="min-h-screen w-full bg-[#F7F5F0] dark:bg-[#0F172A] py-8 sm:py-12 font-['Inter'] text-[#1F2937] dark:text-white transition-colors duration-300"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-        <h1 className="text-3xl font-bold font-['Poppins'] mb-8 text-[#17233C] dark:text-white">
-          {isRtl ? 'إتمام الطلب (Checkout)' : 'Checkout'}
-        </h1>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-
-          <div className="lg:col-span-2 space-y-6">
-
-            {/* Shipping Address */}
-            <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-xl bg-[#E89A5B]/15 dark:bg-[#E89A5B]/25 text-[#E89A5B] flex items-center justify-center font-bold text-base">
-                  <i className="fa-solid fa-location-dot"></i>
-                </div>
-
-                <h2 className="text-xl font-bold font-['Poppins'] text-[#17233C] dark:text-white">
-                  {isRtl ? 'عنوان الشحن' : 'Shipping Address'}
-                </h2>
-              </div>
-
-              <form
-                onSubmit={handleSubmitOrder}
-                id="checkout-form"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-
-                  {/* Full Name */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      {isRtl ? 'الاسم الكامل *' : 'Full Name *'}
-                    </label>
-
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      placeholder={
-                        isRtl
-                          ? 'أدخل اسمك بالكامل'
-                          : 'Enter full name'
-                      }
-                      className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white ${
-                        errors.fullName
-                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                          : 'border-gray-200 dark:border-gray-700 focus:border-[#E89A5B]'
-                      }`}
-                    />
-
-                    {errors.fullName && (
-                      <span className="text-xs text-red-500 mt-1 block">
-                        {errors.fullName}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Phone */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      {isRtl ? 'رقم الهاتف *' : 'Phone *'}
-                    </label>
-
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="01xxxxxxxxx"
-                      className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white ${
-                        errors.phone
-                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                          : 'border-gray-200 dark:border-gray-700 focus:border-[#E89A5B]'
-                      }`}
-                    />
-
-                    {errors.phone && (
-                      <span className="text-xs text-red-500 mt-1 block">
-                        {errors.phone}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Country */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      {isRtl ? 'الدولة *' : 'Country *'}
-                    </label>
-
-                    <input
-                      type="text"
-                      name="country"
-                      value={formData.country}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm outline-none bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-medium cursor-not-allowed"
-                      readOnly
-                    />
-                  </div>
-
-                  {/* City */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      {isRtl ? 'المدينة / المحافظة *' : 'City *'}
-                    </label>
-
-                    <input
-                      type="text"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleChange}
-                      placeholder={
-                        isRtl
-                          ? 'مثال: القاهرة، الإسكندرية'
-                          : 'e.g. Cairo, Alexandria'
-                      }
-                      className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white ${
-                        errors.city
-                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                          : 'border-gray-200 dark:border-gray-700 focus:border-[#E89A5B]'
-                      }`}
-                    />
-
-                    {errors.city && (
-                      <span className="text-xs text-red-500 mt-1 block">
-                        {errors.city}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Address */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      {isRtl ? 'العنوان التفصيلي *' : 'Address *'}
-                    </label>
-
-                    <input
-                      type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      placeholder={
-                        isRtl
-                          ? 'اسم الشارع، رقم المبنى، رقم الشقة'
-                          : 'Street name, building number, apartment'
-                      }
-                      className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white ${
-                        errors.address
-                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                          : 'border-gray-200 dark:border-gray-700 focus:border-[#E89A5B]'
-                      }`}
-                    />
-
-                    {errors.address && (
-                      <span className="text-xs text-red-500 mt-1 block">
-                        {errors.address}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Postal Code */}
-                  <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      {isRtl
-                        ? 'الرمز البريدي (اختياري)'
-                        : 'Postal Code'}
-                    </label>
-
-                    <input
-                      type="text"
-                      name="postalCode"
-                      value={formData.postalCode}
-                      onChange={handleChange}
-                      placeholder="12345"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm outline-none bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-[#E89A5B]"
-                    />
-                  </div>
-
-                </div>
-              </form>
-            </div>
-
-            {/* Payment Method */}
-            <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-xl bg-[#E89A5B]/15 dark:bg-[#E89A5B]/25 text-[#E89A5B] flex items-center justify-center font-bold text-base">
-                  <i className="fa-solid fa-credit-card"></i>
-                </div>
-
-                <h2 className="text-xl font-bold font-['Poppins'] text-[#17233C] dark:text-white">
-                  {isRtl ? 'طريقة الدفع' : 'Payment Method'}
-                </h2>
-              </div>
-
-              <div className="space-y-3">
-
-                <label
-                  className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                    formData.paymentMethod === 'cash'
-                      ? 'border-[#E89A5B] bg-[#E89A5B]/10 dark:bg-[#E89A5B]/20 dark:border-[#E89A5B]'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-3.5">
-
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="cash"
-                      checked={
-                        formData.paymentMethod === 'cash'
-                      }
-                      onChange={handleChange}
-                      className="w-4 h-4 text-[#E89A5B] focus:ring-0 cursor-pointer"
-                    />
-
-                    <div className="w-10 h-10 rounded-xl bg-[#E89A5B]/15 text-[#E89A5B] flex items-center justify-center text-lg shrink-0">
-                      <i className="fa-solid fa-money-bill"></i>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold text-sm text-[#17233C] dark:text-white">
-                        {isRtl
-                          ? 'الدفع عند الاستلام'
-                          : 'Cash on Delivery'}
-                      </h4>
-
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        {isRtl
-                          ? 'ادفع نقداً فور استلام طلبيتك'
-                          : 'Pay when you receive your order'}
-                      </p>
-                    </div>
-
-                  </div>
-                </label>
-
-                <label
-                  className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer opacity-80 ${
-                    formData.paymentMethod === 'card'
-                      ? 'border-[#E89A5B] bg-[#E89A5B]/10 dark:bg-[#E89A5B]/20 dark:border-[#E89A5B]'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-3.5">
-
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="card"
-                      checked={
-                        formData.paymentMethod === 'card'
-                      }
-                      onChange={handleChange}
-                      className="w-4 h-4 text-[#E89A5B] focus:ring-0 cursor-pointer"
-                    />
-
-                    <div className="w-10 h-10 rounded-xl bg-[#E89A5B]/15 text-[#E89A5B] flex items-center justify-center text-lg shrink-0">
-                      <i className="fa-regular fa-credit-card"></i>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold text-sm text-[#17233C] dark:text-white">
-                        {isRtl
-                          ? 'بطاقة ائتمانية / فيزا'
-                          : 'Credit / Debit Card'}
-                      </h4>
-
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        {isRtl
-                          ? 'دفع آمن عبر الإنترنت'
-                          : 'Secure online payment'}
-                      </p>
-                    </div>
-
-                  </div>
-                </label>
-
-              </div>
-            </div>
-
-            {/* Order Notes */}
-            <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-[#E89A5B]/15 dark:bg-[#E89A5B]/25 text-[#E89A5B] flex items-center justify-center font-bold text-base">
-                  <i className="fa-regular fa-clipboard"></i>
-                </div>
-
-                <h2 className="text-xl font-bold font-['Poppins'] text-[#17233C] dark:text-white">
-                  {isRtl
-                    ? 'ملاحظات الطلب (اختياري)'
-                    : 'Order Notes (Optional)'}
-                </h2>
-              </div>
-
-              <textarea
-                name="orderNotes"
-                value={formData.orderNotes}
-                onChange={handleChange}
-                rows="3"
-                placeholder={
-                  isRtl
-                    ? 'أي ملاحظات خاصة بالتوصيل أو الموعد...'
-                    : 'Notes about your order, e.g. special notes for delivery.'
-                }
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm outline-none bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-[#E89A5B] transition-colors resize-none"
-              ></textarea>
-
-            </div>
-          </div>
-
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
-
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-24">
-
-              <h3 className="text-xl font-bold font-['Poppins'] text-[#17233C] dark:text-white mb-6">
-                {isRtl ? 'ملخص الطلب' : 'Order Summary'}
-              </h3>
-
-              <div className="max-h-60 overflow-y-auto space-y-4 pr-1 mb-6 divide-y divide-gray-100 dark:divide-gray-700">
-
-                {items && items.length > 0 ? (
-                  items.map((item) => {
-                    const itemId = item.id || item._id;
-                    const itemImage = item.image || item.imageUrl;
-                    const itemName = item.name || item.title;
-
-                    return (
-                      <div
-                        key={itemId}
-                        className="flex items-center justify-between pt-3 first:pt-0 gap-3"
-                      >
-                        <div className="flex items-center gap-3 overflow-hidden">
-
-                          <img
-                            src={itemImage}
-                            alt={itemName}
-                            className="w-12 h-12 object-cover rounded-lg border border-gray-100 dark:border-gray-700 shrink-0"
-                          />
-
-                          <div className="min-w-0">
-                            <h4 className="text-xs font-semibold text-[#17233C] dark:text-white truncate">
-                              {itemName}
-                            </h4>
-
-                            <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                              x{item.quantity}
-                            </span>
-                          </div>
-                        </div>
-
-                        <span className="text-xs font-bold text-[#17233C] dark:text-white shrink-0">
-                          EGP {(item.price * item.quantity).toFixed(2)}
-                        </span>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
-                    {isRtl
-                      ? 'لا توجد منتجات في السلة'
-                      : 'No items in cart'}
-                  </p>
-                )}
-
-              </div>
-
-              <hr className="border-gray-200 dark:border-gray-700 mb-4" />
-
-              <div className="space-y-2.5 text-sm text-gray-600 dark:text-gray-300">
-
-                <div className="flex justify-between">
-                  <span>
-                    {isRtl ? 'المجموع الفرعي' : 'Subtotal'}
-                  </span>
-
-                  <span className="font-semibold text-[#17233C] dark:text-white">
-                    EGP {cartTotal.toFixed(2)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span>
-                    {isRtl ? 'مصاريف الشحن' : 'Shipping'}
-                  </span>
-
-                  <span className="font-semibold text-[#17233C] dark:text-white">
-                    EGP {cartTotal === 0 ? 0 : shipping}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span>
-                    {isRtl ? 'الضريبة (14%)' : 'Tax (14%)'}
-                  </span>
-
-                  <span className="font-semibold text-[#17233C] dark:text-white">
-                    EGP {tax.toFixed(2)}
-                  </span>
-                </div>
-
-              </div>
-
-              <hr className="border-gray-200 dark:border-gray-700 my-4" />
-
-              <div className="flex justify-between mb-6 text-lg font-bold text-[#17233C] dark:text-white">
-                <span>
-                  {isRtl ? 'الإجمالي' : 'Total'}
-                </span>
-
-                <span className="text-[#E89A5B]">
-                  EGP {finalTotal.toFixed(2)}
-                </span>
-              </div>
-
-              <button
-                type="submit"
-                form="checkout-form"
-                disabled={isSubmitting}
-                className="w-full py-3.5 bg-[#E89A5B] hover:bg-[#d4874b] text-white font-extrabold text-base rounded-xl transition-all shadow-lg hover:shadow-xl cursor-pointer flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg
-                      className="animate-spin h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-
-                    <span>
-                      {isRtl
-                        ? 'جاري تنفيذ الطلب...'
-                        : 'Processing Order...'}
-                    </span>
-                  </>
-                ) : (
-                  <span>
-                    {isRtl
-                      ? 'إتمام الطلب الآن'
-                      : 'Place Order'}
-                  </span>
-                )}
-              </button>
-
-            </div>
-          </div>
+    <div className="min-h-screen bg-[#F7F5F0] dark:bg-[#0F172A] text-slate-900 dark:text-white py-10 px-4 sm:px-6 lg:px-8 font-['Inter'] transition-colors duration-300" dir={isRtl ? 'rtl' : 'ltr'}>
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* الترويسة */}
+        <div className="border-b border-slate-200 dark:border-gray-800 pb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold font-['Poppins'] text-[#17233C] dark:text-white">
+            {t('store.checkout.title', 'Checkout & Shipping')}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-gray-400 mt-1">
+            {t('store.checkout.subtitle', 'Complete your shipping address and payment method to place the order.')}
+          </p>
         </div>
-      </div>
 
-      {/* Success Modal */}
-      {orderSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          
+          {/* نموذج بيانات الشحن والدفع (يمتد لعمودين) */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* عنوان الشحن */}
+            <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 p-6 sm:p-8 space-y-6 shadow-xs">
+              <div className="flex items-center gap-3 border-b border-slate-100 dark:border-gray-700 pb-4">
+                <Truck className="w-5 h-5 text-[#E89A5B]" />
+                <h2 className="text-base font-bold font-['Poppins'] text-slate-900 dark:text-white">
+                  {t('store.checkout.shipping_address', 'Shipping Address')}
+                </h2>
+              </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 dark:text-gray-300">{t('store.checkout.fullname', 'Full Name *')}</label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    required
+                    placeholder="John Doe"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-[#E89A5B] text-slate-900 dark:text-white"
+                  />
+                </div>
 
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
-              ✓
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 dark:text-gray-300">{t('store.checkout.phone', 'Phone Number *')}</label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    required
+                    placeholder="+201234567890"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-[#E89A5B] text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 dark:text-gray-300">{t('store.checkout.country', 'Country *')}</label>
+                  <input
+                    type="text"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-[#E89A5B] text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 dark:text-gray-300">{t('store.checkout.city', 'City *')}</label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    required
+                    placeholder="Cairo"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-[#E89A5B] text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="font-bold text-slate-700 dark:text-gray-300">{t('store.checkout.address', 'Street Address *')}</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    required
+                    placeholder="123 Main Street, Apt 4"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-[#E89A5B] text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 dark:text-gray-300">{t('store.checkout.postal_code', 'Postal Code')}</label>
+                  <input
+                    type="text"
+                    name="postalCode"
+                    value={formData.postalCode}
+                    onChange={handleChange}
+                    placeholder="11511"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-[#E89A5B] text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="font-bold text-slate-700 dark:text-gray-300">{t('store.checkout.note', 'Order Notes (Optional)')}</label>
+                  <textarea
+                    name="customerNote"
+                    value={formData.customerNote}
+                    onChange={handleChange}
+                    rows="2"
+                    placeholder="Please call before delivery..."
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-[#E89A5B] text-slate-900 dark:text-white resize-none"
+                  />
+                </div>
+              </div>
             </div>
 
-            <h3 className="text-2xl font-bold font-['Poppins'] text-[#17233C] dark:text-white mb-2">
-              {isRtl
-                ? 'تم إرسال طلبك بنجاح!'
-                : 'Order Placed Successfully!'}
+            {/* طريقة الدفع */}
+            <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 p-6 sm:p-8 space-y-6 shadow-xs">
+              <div className="flex items-center gap-3 border-b border-slate-100 dark:border-gray-700 pb-4">
+                <CreditCard className="w-5 h-5 text-[#E89A5B]" />
+                <h2 className="text-base font-bold font-['Poppins'] text-slate-900 dark:text-white">
+                  {t('store.checkout.payment_method', 'Payment Method')}
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-3 p-4 rounded-2xl border-2 border-[#E89A5B] bg-amber-50/50 dark:bg-amber-950/20 cursor-pointer flex-1 text-xs font-bold">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cash"
+                    checked={formData.paymentMethod === 'cash'}
+                    onChange={handleChange}
+                    className="accent-[#E89A5B] w-4 h-4"
+                  />
+                  <span>{t('store.checkout.cash_on_delivery', 'Cash on Delivery (COD)')}</span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+
+          {/* ملخص السلة وإتمام الطلب */}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 p-6 space-y-6 shadow-xs sticky top-28">
+            <h3 className="text-base font-bold font-['Poppins'] text-slate-900 dark:text-white border-b border-slate-100 dark:border-gray-700 pb-4">
+              {t('store.checkout.order_summary', 'Order Summary')}
             </h3>
 
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
-              {isRtl
-                ? 'شكراً لتسوقك معنا، تم تأكيد الطلبية وجاري تجهيزها لشحنها إليك.'
-                : 'Thank you for shopping with us. Your order is confirmed and being processed.'}
-            </p>
-
-            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-left text-xs space-y-2 mb-6">
-
-              <div className="flex justify-between">
-                <span className="text-gray-500">
-                  {isRtl ? 'رقم الطلب:' : 'Order ID:'}
-                </span>
-
-                <span className="font-bold text-[#4F46E5] dark:text-indigo-400">
-                  #{orderSuccess.id}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-gray-500">
-                  {isRtl ? 'العنوان:' : 'Delivery To:'}
-                </span>
-
-                <span className="font-medium text-gray-800 dark:text-gray-200 truncate max-w-[180px]">
-                  {orderSuccess.address}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-gray-500">
-                  {isRtl ? 'الإجمالي:' : 'Total Amount:'}
-                </span>
-
-                <span className="font-bold text-gray-800 dark:text-white">
-                  EGP {Number(orderSuccess.total).toFixed(2)}
-                </span>
-              </div>
-
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+              {cart.items?.map((item, idx) => (
+                <div key={item._id || idx} className="flex justify-between items-center text-xs text-slate-600 dark:text-gray-400">
+                  <span className="line-clamp-1 flex-1">{item.name || 'Product'} × {item.quantity}</span>
+                  <span className="font-mono font-bold">${(Number(item.price || 0) * item.quantity).toFixed(2)}</span>
+                </div>
+              ))}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-
-              <Link
-                to="/my-orders"
-                className="flex-1 py-3 px-4 bg-[#17233C] dark:bg-white text-white dark:text-[#17233C] hover:bg-[#E89A5B] dark:hover:bg-[#E89A5B] dark:hover:text-white rounded-xl text-xs font-bold transition-colors no-underline"
-              >
-                {isRtl ? 'متابعة طلباتي' : 'View My Orders'}
-              </Link>
-
-              <Link
-                to="/wishlist"
-                className="flex-1 py-3 px-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-xs font-semibold transition-colors no-underline"
-              >
-                {isRtl ? 'مواصلة التسوق' : 'Continue Shopping'}
-              </Link>
-
+            <div className="space-y-3 text-xs pt-4 border-t border-slate-100 dark:border-gray-700">
+              <div className="flex justify-between text-slate-600 dark:text-gray-400">
+                <span>{t('store.cart_page.subtotal', 'Subtotal')}</span>
+                <span className="font-mono font-bold">${Number(cart.subtotal || 0).toFixed(2)}</span>
+              </div>
+              {cart.discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span>{t('store.cart_page.discount', 'Discount')}</span>
+                  <span className="font-mono">-${Number(cart.discountAmount || 0).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-slate-900 dark:text-white text-sm font-bold pt-3 border-t border-slate-100 dark:border-gray-700">
+                <span>{t('store.cart_page.total', 'Total')}</span>
+                <span className="font-mono text-base text-[#E89A5B]">${Number(cart.total || 0).toFixed(2)}</span>
+              </div>
             </div>
 
+            <button
+              type="submit"
+              disabled={loading || !cart.items || cart.items.length === 0}
+              className="w-full py-3.5 px-6 rounded-xl bg-[#17233C] dark:bg-[#E89A5B] hover:opacity-90 text-white text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-xl cursor-pointer disabled:opacity-50"
+            >
+              <span>{loading ? (isRtl ? 'جاري إتمام الطلب...' : 'Placing Order...') : (isRtl ? 'تأكيد وإتمام الطلب' : 'Place Order')}</span>
+              {isRtl ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+            </button>
+
+            <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 dark:text-gray-500 pt-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <span>{t('store.checkout.secure_checkout', 'Secure SSL Checkout & Guaranteed Delivery')}</span>
+            </div>
           </div>
-        </div>
-      )}
+
+        </form>
+
+      </div>
     </div>
   );
-};
-
-export default Checkout;
+}

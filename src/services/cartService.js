@@ -10,11 +10,19 @@ export const getMyCart = async () => {
 };
 
 /**
- * إضافة منتج إلى السلة أو زيادة كميته
+ * إضافة منتج إلى السلة مع معالجة آمنة لمعرف المنتج
  * POST /carts/items
  */
 export const addToCart = async (productId, quantity = 1) => {
-  const response = await axiosInstance.post("/carts/items", { productId, quantity });
+  let cleanId = productId;
+  if (typeof productId === 'object' && productId !== null) {
+    cleanId = productId._id || productId.id || productId.product || productId.productId;
+  }
+
+  const response = await axiosInstance.post("/carts/items", { 
+    productId: String(cleanId), 
+    quantity: Number(quantity) 
+  });
   return response.data;
 };
 
@@ -23,7 +31,15 @@ export const addToCart = async (productId, quantity = 1) => {
  * PATCH /carts/items
  */
 export const updateCartItem = async (productId, quantity) => {
-  const response = await axiosInstance.patch("/carts/items", { productId, quantity });
+  let cleanId = productId;
+  if (typeof productId === 'object' && productId !== null) {
+    cleanId = productId._id || productId.id || productId.product || productId.productId;
+  }
+
+  const response = await axiosInstance.patch("/carts/items", { 
+    productId: String(cleanId), 
+    quantity: Number(quantity) 
+  });
   return response.data;
 };
 
@@ -32,7 +48,12 @@ export const updateCartItem = async (productId, quantity) => {
  * DELETE /carts/items/{productId}
  */
 export const removeFromCart = async (productId) => {
-  const response = await axiosInstance.delete(`/carts/items/${productId}`);
+  let cleanId = productId;
+  if (typeof productId === 'object' && productId !== null) {
+    cleanId = productId._id || productId.id || productId.product || productId.productId;
+  }
+
+  const response = await axiosInstance.delete(`/carts/items/${cleanId}`);
   return response.data;
 };
 
@@ -41,7 +62,8 @@ export const removeFromCart = async (productId) => {
  * POST /carts/coupon
  */
 export const applyCoupon = async (coupon) => {
-  const response = await axiosInstance.post("/carts/coupon", { coupon: coupon.trim() });
+  const codeValue = typeof coupon === 'object' ? (coupon.code || coupon.coupon) : coupon;
+  const response = await axiosInstance.post("/carts/coupon", { code: String(codeValue).trim() });
   return response.data;
 };
 

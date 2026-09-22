@@ -1,516 +1,213 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import toast from 'react-hot-toast';
-import productService from '../../../services/productService';
-import { useCart } from '../../../context/CartContext';
+import { Heart, ShoppingBag, Star, ArrowLeft, ArrowRight, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext';
 import { useWishlist } from '../../../context/WishlistContext';
-import { useAuth } from '../../../context/AuthContext';
+import { useCart } from '../../../context/CartContext';
+import productService from '../../../services/productService';
+import toast from 'react-hot-toast';
 
-export default function ProductDetails() {
+export const StoreProductView = () => {
   const { id } = useParams();
-  const { t, i18n } = useTranslation('shop');
-  const isRtl = i18n.language === 'ar';
+  const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const isRtl = (i18n.language || 'ar').startsWith('ar');
+  const { formatPrice } = useSettings();
+  const { isInWishlist, toggleWishlistGlobal } = useWishlist();
 
-  const { addToCart } = useCart();
-  const { isInWishlist, toggleWishlist } = useWishlist();
-  const { user } = useAuth();
+  const { addToCartGlobal } = useCart();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [selectedImage, setSelectedImage] = useState('');
   const [quantity, setQuantity] = useState(1);
 
-  // المراجعات والتقييمات
-  const [reviews, setReviews] = useState([]);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
-  const [newRating, setNewRating] = useState(5);
-  const [newComment, setNewComment] = useState('');
-  const [submittingReview, setSubmittingReview] = useState(false);
-
-  // جلب بيانات المنتج
-  const fetchProductData = useCallback(async () => {
+  // جلب تفاصيل المنتج مع اعتماد التخزين المؤقت للسرعة الفائقة
+  const fetchProductDetails = useCallback(async () => {
     try {
       setLoading(true);
       const res = await productService.getProductById(id);
-      const data = res?.product || res?.data?.product || res?.data || res;
-      setProduct(data);
-    } catch {
-      toast.error(t('productNotFound', 'Product not found or failed to load'));
+      const item = res?.product || res?.data || res;
+      if (item) {
+        setProduct(item);
+        const defaultImg = item.image || item.imageUrl || (item.images && item.images[0]) || '';
+        setSelectedImage(typeof defaultImg === 'string' ? defaultImg : defaultImg?.url);
+      }
+    } catch (err) {
+      toast.error(t('store.product_view.fetch_error', 'Failed to load product details'));
+      navigate('/products');
     } finally {
       setLoading(false);
     }
-  }, [id, t]);
-
-  // جلب مراجعات المنتج
-  const fetchReviews = useCallback(async () => {
-    try {
-      setReviewsLoading(true);
-      const res = await productService.getProductReviews(id);
-      const items = res?.reviews || res?.data?.reviews || (Array.isArray(res) ? res : []);
-      setReviews(items);
-    } catch {
-      setReviews([]);
-    } finally {
-      setReviewsLoading(false);
-    }
-  }, [id]);
+  }, [id, navigate, t]);
 
   useEffect(() => {
     if (id) {
-      fetchProductData();
-      fetchReviews();
+      fetchProductDetails();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [id, fetchProductData, fetchReviews]);
-
-  // إضافة مراجعة
-  const handleAddReview = async (e) => {
-    e.preventDefault();
-    if (!user) {
-      toast.error(t('loginToReview', 'Please login first to leave a review'));
-      return;
-    }
-    if (!newComment.trim()) {
-      toast.error(t('commentRequired', 'Please write your comment'));
-      return;
-    }
-
-    try {
-      setSubmittingReview(true);
-      await productService.addProductReview(id, {
-        rating: Number(newRating),
-        comment: newComment.trim(),
-      });
-      toast.success(t('reviewAddedSuccess', 'Review added successfully!'));
-      setNewComment('');
-      setNewRating(5);
-      fetchReviews();
-      fetchProductData();
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message;
-      if (err.response?.status === 400 && msg?.toLowerCase().includes('already')) {
-        toast.error(t('alreadyReviewed', 'You have already reviewed this product'));
-      } else {
-        toast.error(msg || t('reviewFailed', 'Failed to add review'));
-      }
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
-
-  // استخراج روابط الصور
-  const images = (product?.images && product.images.length > 0)
-    ? product.images.map((img) => (typeof img === 'string' ? img : img.url)).filter(Boolean)
-    : [product?.image || product?.imageUrl || 'https://placehold.co/800x800?text=No+Image'];
-
-  const prodId = product?._id || product?.id;
-  const productName = product?.title || product?.name || t('productDefault', 'Product');
-  const isWish = isInWishlist(prodId);
-  const stockCount = product?.stock ?? 10;
-  const isOutOfStock = stockCount <= 0;
-
-  // استخراج وترجمة اسم القسم
-  const rawCategory = typeof product?.category === 'object' ? product?.category?.name : product?.category;
-  const sanitizedCat = rawCategory
-    ? String(rawCategory).toLowerCase().trim().replace(/[\s-_]+/g, '')
-    : '';
-  const displayCategory = rawCategory
-    ? t(`cat_${sanitizedCat}`, {
-        defaultValue: t(`cat_${String(rawCategory).toLowerCase().trim()}`, {
-          defaultValue: rawCategory,
-        }),
-      })
-    : '';
-
-  // احتساب الأسعار
-  const regularPrice = Number(product?.price) || 0;
-  const discountPrice = Number(product?.discountPrice) || 0;
-  const hasDiscount = discountPrice > 0 && discountPrice < regularPrice;
-  const finalPrice = hasDiscount ? discountPrice : regularPrice;
-
-  const handleShare = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success(t('linkCopied', 'Product link copied to clipboard!'));
-    }
-  };
+  }, [id, fetchProductDetails]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F7F5F0] dark:bg-[#0F172A] py-16 px-4 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-10 h-10 border-4 border-[#E89A5B] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">
-            {t('loadingProduct', 'Loading product details...')}
-          </p>
-        </div>
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#0B132B] dark:border-[#E89A5B] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
-  if (!product) {
-    return (
-      <div className="min-h-screen bg-[#F7F5F0] dark:bg-[#0F172A] py-20 px-4 text-center">
-        <div className="max-w-md mx-auto space-y-4">
-          <i className="fa-solid fa-triangle-exclamation text-4xl text-amber-500" />
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            {t('productNotFound', 'Product not found')}
-          </h2>
-          <Link
-            to="/shop"
-            className="inline-block px-6 py-2.5 bg-[#17233C] hover:bg-[#E89A5B] dark:bg-[#E89A5B] text-white rounded-xl text-xs font-semibold transition"
-          >
-            {t('backToShop', 'Back to Store')}
-          </Link>
-        </div>
-      </div>
-    );
+  if (!product) return null;
+
+  const prodId = product._id || product.id;
+  const isWish = isInWishlist(prodId);
+  const title = product.title || product.name || 'Product';
+  const desc = product.description || '';
+  const price = Number(product.price) || 0;
+  const discountPrice = Number(product.discountPrice) || 0;
+  const hasDiscount = discountPrice > 0 && discountPrice < price;
+  const finalPrice = hasDiscount ? discountPrice : price;
+  const rating = Number(product.rating || product.averageRating || 4.8);
+  
+  const imagesList = product.images && product.images.length > 0 
+    ? product.images.map(img => typeof img === 'string' ? img : img?.url) 
+    : [selectedImage || 'https://placehold.co/600'];
+
+  const handleAddToCart = async () => {
+  const token = localStorage.getItem("token") || localStorage.getItem("luma_token");
+  if (!token) {
+    toast.error(isRtl ? "يرجى تسجيل الدخول أولاً لإضافة منتجات إلى السلة" : "Please sign in first to add items to cart");
+    navigate("/login");
+    return;
   }
+  await addToCartGlobal(prodId, quantity);
+};
 
   return (
-    <div
-      className="min-h-screen bg-[#F7F5F0] dark:bg-[#0F172A] text-slate-900 dark:text-white py-8 sm:py-12 px-4 sm:px-6 lg:px-8 font-['Inter'] transition-colors duration-300"
-      dir={isRtl ? 'rtl' : 'ltr'}
-    >
-      <div className="max-w-6xl mx-auto space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12 font-['Inter']" dir={isRtl ? 'rtl' : 'ltr'}>
+      
+      {/* زر العودة */}
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-xs font-bold transition cursor-pointer"
+      >
+        {isRtl ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
+        <span>{t('store.product_view.back_to_catalog', 'Back to Catalog')}</span>
+      </button>
 
-        {/* مسار التنقل (Breadcrumb) */}
-        <nav className="flex items-center gap-2 text-xs font-medium text-slate-400">
-          <Link to="/" className="hover:text-slate-700 dark:hover:text-gray-200">
-            {t('home', 'Home')}
-          </Link>
-          <span>/</span>
-          <Link to="/shop" className="hover:text-slate-700 dark:hover:text-gray-200">
-            {t('shop', 'Shop')}
-          </Link>
-          <span>/</span>
-          {displayCategory && (
-            <>
-              <Link
-                to={`/shop?category=${rawCategory}`}
-                className="hover:text-[#E89A5B] dark:hover:text-[#E89A5B] transition-colors"
-              >
-                {displayCategory}
-              </Link>
-              <span>/</span>
-            </>
+      {/* تفاصيل المنتج الأساسية */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+        
+        {/* صور المنتج */}
+        <div className="space-y-4">
+          <div className="aspect-square w-full rounded-3xl overflow-hidden bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 shadow-lg relative">
+            <img src={selectedImage} alt={title} className="w-full h-full object-cover" loading="eager" />
+            <button
+              type="button"
+              onClick={() => toggleWishlistGlobal(product)}
+              className={`absolute top-4 end-4 p-3 rounded-full transition shadow-xl cursor-pointer backdrop-blur-md ${isWish ? "bg-rose-500 text-white" : "bg-black/40 text-white hover:bg-black/60"}`}
+              title={t('store.catalog.wishlist_btn', 'Wishlist')}
+            >
+              <Heart className={`w-5 h-5 ${isWish ? "fill-current" : ""}`} />
+            </button>
+          </div>
+
+          {imagesList.length > 1 && (
+            <div className="flex items-center gap-3 overflow-x-auto pb-2">
+              {imagesList.map((img, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSelectedImage(img)}
+                  className={`w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0 transition cursor-pointer ${selectedImage === img ? 'border-[#E89A5B]' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+                </button>
+              ))}
+            </div>
           )}
-          <span className="text-slate-800 dark:text-gray-200 font-semibold truncate max-w-[200px]">
-            {productName}
-          </span>
-        </nav>
+        </div>
 
-        {/* القسم العلوي: المعرض والتفاصيل */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+        {/* معلومات المنتج والشراء */}
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <span className="inline-block px-3 py-1 rounded-full bg-[#E89A5B]/10 text-[#E89A5B] text-[11px] font-black uppercase tracking-wider">
+              {product.category || t('store.product_view.exclusive_tag', 'LUMA Exclusive')}
+            </span>
+            <h1 className="text-2xl sm:text-4xl font-black uppercase font-['Poppins']">{title}</h1>
+            
+            <div className="flex items-center gap-2 text-[#E89A5B] pt-1">
+              <div className="flex items-center">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className={`w-4 h-4 ${i < Math.floor(rating) ? 'fill-current' : 'text-gray-300'}`} />
+                ))}
+              </div>
+              <span className="text-xs font-bold text-secondary-muted">({rating.toFixed(1)})</span>
+            </div>
+          </div>
 
-          {/* 1. معرض الصور (Image Gallery) */}
-          <div className="lg:col-span-6 space-y-4">
-            <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-white dark:bg-gray-800 border border-slate-200/80 dark:border-gray-700 shadow-xs flex items-center justify-center group">
-              <img
-                src={images[activeImageIdx]}
-                alt={productName}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              {hasDiscount && (
-                <span className="absolute top-4 start-4 px-3 py-1 bg-[#E89A5B] text-white text-xs font-bold rounded-full shadow-xs">
-                  {Math.round(((regularPrice - discountPrice) / regularPrice) * 100)}% {t('discountOff', 'OFF')}
-                </span>
-              )}
+          <div className="flex items-baseline gap-4 py-4 border-y border-black/5 dark:border-white/10">
+            <span className="text-3xl font-black text-[#E89A5B] font-mono">${formatPrice(finalPrice)}</span>
+            {hasDiscount && (
+              <span className="text-base text-secondary-muted line-through font-mono">${formatPrice(price)}</span>
+            )}
+          </div>
+
+          <p className="text-xs sm:text-sm text-secondary-muted leading-relaxed">
+            {desc || t('store.product_view.default_desc', 'منتج فاخر مصمم بأعلى معايير الجودة والأناقة.')}
+          </p>
+
+          <div className="space-y-4 pt-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center border border-black/10 dark:border-white/10 rounded-xl overflow-hidden bg-white dark:bg-[#0B132B]">
+                <button 
+                  type="button" 
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  className="px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition font-bold cursor-pointer"
+                >
+                  -
+                </button>
+                <span className="px-4 text-xs font-black">{quantity}</span>
+                <button 
+                  type="button" 
+                  onClick={() => setQuantity(q => q + 1)}
+                  className="px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition font-bold cursor-pointer"
+                >
+                  +
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={handleShare}
-                className="absolute top-4 end-4 w-9 h-9 rounded-full bg-white/90 dark:bg-gray-800/90 text-slate-700 dark:text-gray-200 flex items-center justify-center hover:bg-[#17233C] hover:text-white dark:hover:bg-[#E89A5B] transition shadow-xs cursor-pointer"
-                title={t('share', 'Share Product')}
+                onClick={handleAddToCart}
+                className="flex-1 py-3.5 px-6 rounded-xl bg-[#0B132B] dark:bg-white text-white dark:text-[#0B132B] text-xs font-black uppercase tracking-wider hover:brightness-125 transition flex items-center justify-center gap-2 shadow-xl cursor-pointer"
               >
-                <i className="fa-solid fa-arrow-up-from-bracket text-xs" />
+                <ShoppingBag className="w-4 h-4 text-[#E89A5B]" />
+                <span>{t('store.product_view.add_to_bag', 'Add to Bag')}</span>
               </button>
             </div>
-
-            {/* مصغرات الصور (Thumbnails) */}
-            {images.length > 1 && (
-              <div className="flex items-center gap-3 overflow-x-auto pb-2">
-                {images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setActiveImageIdx(idx)}
-                    className={`w-18 h-18 rounded-2xl overflow-hidden border-2 transition shrink-0 cursor-pointer ${
-                      activeImageIdx === idx
-                        ? 'border-[#E89A5B] shadow-xs'
-                        : 'border-transparent bg-white dark:bg-gray-800 opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* 2. بطاقة معلومات المنتج والإجراءات */}
-          <div className="lg:col-span-6 space-y-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                {product.brand && (
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#E89A5B]">
-                    {product.brand}
-                  </span>
-                )}
-                <span
-                  className={`px-3 py-0.5 rounded-full text-[10px] font-bold ${
-                    isOutOfStock
-                      ? 'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400'
-                      : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'
-                  }`}
-                >
-                  {isOutOfStock ? t('outOfStock', 'Out of Stock') : t('inStock', 'In Stock')}
-                </span>
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl font-bold font-['Poppins'] text-slate-900 dark:text-white leading-tight">
-                {productName}
-              </h1>
-
-              {/* التقييم */}
-              <div className="flex items-center gap-2 pt-1">
-                <div className="flex text-[#E89A5B] text-xs">
-                  {[...Array(5)].map((_, i) => (
-                    <i
-                      key={i}
-                      className={
-                        i < Math.round(product.averageRating || 5)
-                          ? 'fa-solid fa-star'
-                          : 'fa-regular fa-star'
-                      }
-                    />
-                  ))}
-                </div>
-                <span className="text-xs font-semibold text-slate-700 dark:text-gray-300">
-                  {Number(product.averageRating || 5).toFixed(1)}
-                </span>
-                <span className="text-xs text-slate-400">
-                  ({product.numReviews || reviews.length} {t('reviews', 'reviews')})
-                </span>
-              </div>
+          {/* مميزات إضافية */}
+          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-black/5 dark:border-white/10 text-center">
+            <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/5 space-y-1">
+              <Truck className="w-5 h-5 mx-auto text-[#E89A5B]" />
+              <span className="text-[10px] font-bold block">{t('store.product_view.fast_shipping', 'Fast Shipping')}</span>
             </div>
-
-            {/* السعر */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-gray-800 border border-slate-200/80 dark:border-gray-700 flex items-baseline gap-3">
-              <span className="text-3xl font-extrabold text-slate-900 dark:text-white font-mono">
-                {finalPrice} <span className="text-sm font-semibold">{t('currency', 'EGP')}</span>
-              </span>
-              {hasDiscount && (
-                <span className="text-sm font-semibold text-slate-400 line-through">
-                  {regularPrice} {t('currency', 'EGP')}
-                </span>
-              )}
+            <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/5 space-y-1">
+              <ShieldCheck className="w-5 h-5 mx-auto text-[#E89A5B]" />
+              <span className="text-[10px] font-bold block">{t('store.product_view.authentic', 'Authentic')}</span>
             </div>
-
-            {/* الوصف القصير */}
-            {product.shortDescription && (
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-gray-300 leading-relaxed">
-                {product.shortDescription}
-              </p>
-            )}
-
-            {/* شريط الإجراءات والكمية */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4">
-                {/* محدد الكمية */}
-                <div className="flex items-center rounded-2xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1">
-                  <button
-                    type="button"
-                    disabled={quantity <= 1 || isOutOfStock}
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700 disabled:opacity-40 transition cursor-pointer"
-                  >
-                    -
-                  </button>
-                  <span className="w-10 text-center font-bold text-xs sm:text-sm font-mono text-slate-900 dark:text-white">
-                    {quantity}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={quantity >= stockCount || isOutOfStock}
-                    onClick={() => setQuantity((q) => Math.min(stockCount, q + 1))}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700 disabled:opacity-40 transition cursor-pointer"
-                  >
-                    +
-                  </button>
-                </div>
-
-                {/* زر الإضافة للسلة */}
-                <button
-                  type="button"
-                  disabled={isOutOfStock}
-                  onClick={() => addToCart(product, quantity)}
-                  className="flex-1 py-3.5 px-6 bg-[#17233C] hover:bg-[#E89A5B] dark:bg-[#E89A5B] dark:hover:bg-[#d4894d] text-white text-xs sm:text-sm font-bold rounded-2xl transition shadow-xs flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-                >
-                  <i className="fa-solid fa-cart-shopping text-sm" />
-                  <span>{isOutOfStock ? t('soldOut', 'Sold Out') : t('addToCart', 'Add to Cart')}</span>
-                </button>
-
-                {/* زر المفضلة */}
-                <button
-                  type="button"
-                  onClick={() => toggleWishlist(product)}
-                  className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition cursor-pointer shrink-0 ${
-                    isWish
-                      ? 'border-rose-300 bg-rose-50 text-rose-500 dark:bg-rose-950/40'
-                      : 'border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 hover:text-rose-500'
-                  }`}
-                  title={isWish ? t('removeFromWishlist', 'Remove from wishlist') : t('addToWishlist', 'Add to wishlist')}
-                >
-                  <i className={isWish ? 'fa-solid fa-heart text-base text-rose-500' : 'fa-regular fa-heart text-base'} />
-                </button>
-              </div>
+            <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/5 space-y-1">
+              <RotateCcw className="w-5 h-5 mx-auto text-[#E89A5B]" />
+              <span className="text-[10px] font-bold block">{t('store.product_view.easy_return', 'Easy Return')}</span>
             </div>
-
-            {/* المزايا والضمان */}
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-200/80 dark:border-gray-700 text-[11px] text-slate-500 dark:text-gray-400">
-              <div className="flex items-center gap-2">
-                <i className="fa-solid fa-shield-check text-[#E89A5B] text-sm" />
-                <span>{t('authenticGuarantee', '100% Authentic Products')}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <i className="fa-solid fa-truck-fast text-[#E89A5B] text-sm" />
-                <span>{t('fastShipping', 'Fast Doorstep Delivery')}</span>
-              </div>
-            </div>
-
           </div>
         </div>
-
-        {/* القسم السفلي: الوصف التفصيلي والتقييمات */}
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200/80 dark:border-gray-700 p-6 sm:p-10 shadow-xs space-y-10">
-
-          {/* الوصف الشامل */}
-          {product.description && (
-            <div className="space-y-3">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-['Poppins']">
-                {t('fullDescription', 'Product Overview & Specifications')}
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                {product.description}
-              </p>
-            </div>
-          )}
-
-          {/* قسم المراجعات والتقييمات */}
-          <div className="border-t border-slate-100 dark:border-gray-700 pt-8 space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-['Poppins']">
-                  {t('customerReviews', 'Customer Reviews')}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-                  {t('reviewsSub', 'Read genuine customer reviews or share your own experience')}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 bg-slate-50 dark:bg-gray-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-gray-700">
-                <span className="text-lg font-bold text-slate-900 dark:text-white">
-                  {Number(product.averageRating || 5).toFixed(1)}
-                </span>
-                <span className="text-xs text-slate-400">/ 5.0</span>
-              </div>
-            </div>
-
-            {/* نموذج إضافة تقييم جديد */}
-            <form
-              onSubmit={handleAddReview}
-              className="p-5 rounded-2xl bg-slate-50/70 dark:bg-gray-900/60 border border-slate-200/80 dark:border-gray-700 space-y-4"
-            >
-              <h4 className="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
-                {t('leaveReview', 'Write a Review')}
-              </h4>
-
-              {/* اختيار النجوم */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500 dark:text-gray-400">{t('yourRating', 'Rating:')}</span>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setNewRating(star)}
-                      className="text-base text-[#E89A5B] transition-transform hover:scale-110 cursor-pointer"
-                    >
-                      <i className={star <= newRating ? 'fa-solid fa-star' : 'fa-regular fa-star'} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <textarea
-                  rows="3"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder={t('writeReviewPlaceholder', 'Write your honest review about this product...')}
-                  className="w-full px-4 py-2.5 text-xs sm:text-sm bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-[#E89A5B] transition dark:text-white"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingReview}
-                className="px-5 py-2.5 bg-[#17233C] hover:bg-[#E89A5B] dark:bg-[#E89A5B] dark:hover:bg-[#d4894d] text-white text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50"
-              >
-                {submittingReview && (
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                )}
-                <span>{submittingReview ? t('postingReview', 'Submitting...') : t('submitReview', 'Submit Review')}</span>
-              </button>
-            </form>
-
-            {/* قائمة المراجعات */}
-            {reviewsLoading ? (
-              <div className="py-6 text-center text-xs text-slate-400">
-                {t('loadingReviews', 'Loading reviews...')}
-              </div>
-            ) : reviews.length === 0 ? (
-              <div className="py-8 text-center space-y-2">
-                <i className="fa-regular fa-comments text-2xl text-slate-300 dark:text-gray-600" />
-                <p className="text-xs text-slate-500 dark:text-gray-400">
-                  {t('noReviewsYet', 'No reviews yet. Be the first to review this product!')}
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100 dark:divide-gray-700 space-y-4">
-                {reviews.map((rev, idx) => (
-                  <div key={rev._id || idx} className="pt-4 first:pt-0 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-xs text-slate-900 dark:text-white">
-                          {rev.username || rev.user?.username || t('customerDefault', 'Customer')}
-                        </span>
-                        <div className="flex text-[#E89A5B] text-[10px]">
-                          {[...Array(5)].map((_, i) => (
-                            <i
-                              key={i}
-                              className={i < rev.rating ? 'fa-solid fa-star' : 'fa-regular fa-star'}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(rev.createdAt || Date.now()).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-gray-300 leading-relaxed">
-                      {rev.comment}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-        </div>
-
       </div>
     </div>
   );
-}
+};
+
+export default StoreProductView;

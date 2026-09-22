@@ -1,292 +1,136 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import toast from 'react-hot-toast';
+import { Heart, ShoppingBag, Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useWishlist } from '../../../context/WishlistContext';
 import { useCart } from '../../../context/CartContext';
-import QuickViewModal from '../products/components/QuickViewModal';
+import axiosInstance from '../../../api/axiosInstance';
+import toast from 'react-hot-toast';
 
-export default function Wishlist() {
-  const { t, i18n } = useTranslation('wishlist');
-  const isRtl = i18n.language === 'ar';
+export default function WishlistPage() {
+  const { t, i18n } = useTranslation();
+  const isRtl = (i18n.language || 'ar').startsWith('ar');
 
-  const { wishlistItems, removeFromWishlist, clearWishlist, toggleWishlist } = useWishlist();
-  const { addToCart } = useCart();
-  const [addedIds, setAddedIds] = useState([]);
-  const [sortBy, setSortBy] = useState('default');
-  const [quickViewProduct, setQuickViewProduct] = useState(null);
+  const { wishlistIds, toggleWishlist } = useWishlist();
+  const { addToCartGlobal } = useCart();
 
-  const handleAddToCart = async (product) => {
-    const pId = product._id || product.id;
-    if (addToCart) {
-      await addToCart(product, 1);
-    }
-    setAddedIds((prev) => [...prev, pId]);
-    setTimeout(() => {
-      setAddedIds((prev) => prev.filter((id) => id !== pId));
-    }, 1800);
-  };
+  const [wishlistProducts, setWishlistProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleMoveAllToCart = () => {
-    wishlistItems.forEach((item) => {
-      addToCart(item, 1);
-    });
-    clearWishlist();
-    toast.success(t('movedAllSuccess', 'All items moved to your cart!'));
-  };
+  useEffect(() => {
+    const fetchWishlistProducts = async () => {
+      try {
+        setLoading(true);
+        if (!wishlistIds || wishlistIds.length === 0) {
+          setWishlistProducts([]);
+          setLoading(false);
+          return;
+        }
 
-  const handleRemoveWithUndo = (product) => {
-    const pId = product._id || product.id;
-    const prodName = product.name || product.title || t('productDefault', 'Product');
-    removeFromWishlist(pId);
+        // جلب تفاصيل المنتجات الموجودة في قائمة المفضلة
+        const res = await axiosInstance.get('/products');
+        const allProducts = res.data?.products || res.data || [];
+        const filtered = allProducts.filter((p) => wishlistIds.includes(p._id || p.id));
+        setWishlistProducts(filtered);
+      } catch (err) {
+        console.error(err);
+        toast.error(isRtl ? 'تعذر جلب منتجات المفضلة' : 'Failed to load wishlist items');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    toast(
-      (toastItem) => (
-        <div className="flex items-center gap-3 text-xs font-semibold">
-          <span>{t('itemRemovedToast', { name: prodName, defaultValue: `${prodName} removed` })}</span>
-          <button
-            type="button"
-            onClick={() => {
-              toggleWishlist(product);
-              toast.dismiss(toastItem.id);
-            }}
-            className="px-2 py-1 bg-[#E89A5B] text-white rounded-md text-[11px] font-bold hover:opacity-90 transition cursor-pointer"
-          >
-            {t('undo', 'Undo')}
-          </button>
-        </div>
-      ),
-      { duration: 4000 }
-    );
-  };
-
-  const handleShare = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success(t('shareSuccess', 'Wishlist link copied to clipboard!'));
-    }
-  };
-
-  const extractImage = (prod) => {
-    if (Array.isArray(prod.images) && prod.images.length > 0) {
-      return typeof prod.images[0] === 'string' ? prod.images[0] : prod.images[0]?.url;
-    }
-    return prod.image || prod.imageUrl || 'https://placehold.co/400x400?text=No+Image';
-  };
-
-  const sortedItems = useMemo(() => {
-    const items = [...wishlistItems];
-    if (sortBy === 'price-low') {
-      return items.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
-    }
-    if (sortBy === 'price-high') {
-      return items.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
-    }
-    return items;
-  }, [wishlistItems, sortBy]);
+    fetchWishlistProducts();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [wishlistIds, isRtl]);
 
   return (
-    <div
-      className="min-h-screen bg-[#F7F5F0] dark:bg-[#0F172A] text-slate-900 dark:text-white py-10 px-4 sm:px-6 lg:px-8 font-['Inter'] transition-colors duration-300"
-      dir={isRtl ? 'rtl' : 'ltr'}
-    >
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* الترويسة وأدوات التحكم */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 dark:border-gray-800 pb-6">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold font-['Poppins'] text-[#17233C] dark:text-white">
-              {t('title', 'My Wishlist')}
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-gray-400 mt-1">
-              {t('itemCount', { count: wishlistItems.length, defaultValue: `${wishlistItems.length} saved items` })}
-            </p>
+    <div className="min-h-[80vh] bg-[#FDFBF7] dark:bg-[#0B132B] text-[#0B132B] dark:text-white py-16 px-4 sm:px-6 lg:px-8 font-['Poppins'] flex flex-col items-center" dir={isRtl ? 'rtl' : 'ltr'}>
+      
+      {/* حاوية مركزية تضمن توسيط وتناسق المحتوى في وسط الشاشة */}
+      <div className="w-full max-w-6xl space-y-10">
+        
+        {/* الترويسة */}
+        <div className="text-center space-y-2 max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-500/10 text-rose-500 text-xs font-bold uppercase tracking-widest">
+            <Heart className="w-3.5 h-3.5 fill-current" />
+            <span>{t('store.nav.wishlist', 'Wishlist')}</span>
           </div>
-
-          {wishlistItems.length > 0 && (
-            <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl text-slate-700 dark:text-gray-200 outline-none cursor-pointer"
-              >
-                <option value="default">{t('sortDefault', 'Sort: Default')}</option>
-                <option value="price-low">{t('priceLow', 'Price: Low to High')}</option>
-                <option value="price-high">{t('priceHigh', 'Price: High to Low')}</option>
-              </select>
-
-              <button
-                type="button"
-                onClick={handleShare}
-                className="px-3.5 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-200 rounded-xl text-xs font-semibold hover:bg-slate-50 dark:hover:bg-gray-700 transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <i className="fa-solid fa-share-nodes text-xs"></i>
-                <span>{t('share', 'Share')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleMoveAllToCart}
-                className="px-4 py-2 bg-[#17233C] hover:bg-[#E89A5B] dark:bg-[#E89A5B] dark:hover:bg-[#d4894d] text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
-              >
-                <i className="fa-solid fa-cart-shopping text-xs"></i>
-                <span>{t('moveAllToCart', 'Move All to Cart')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={clearWishlist}
-                className="px-3 py-2 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-semibold transition cursor-pointer"
-              >
-                {t('clearWishlist', 'Clear All')}
-              </button>
-            </div>
-          )}
+          <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight">
+            {isRtl ? 'قائمة المنتجات المفضلة لديك' : 'Your Curated Wishlist'}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-gray-400">
+            {isRtl ? 'جميع القطع الفاخرة التي قمت بحفظها لاستعراضها لاحقاً أو نقلها مباشرة إلى السلة.' : 'All luxury assets you saved for later or quick acquisition.'}
+          </p>
         </div>
 
-        {/* عرض العناصر */}
-        {sortedItems.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200/80 dark:border-gray-700 p-12 text-center max-w-md mx-auto shadow-xs space-y-4">
-            <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center mx-auto text-2xl">
-              <i className="fa-regular fa-heart"></i>
+        {loading ? (
+          <div className="flex justify-center py-24">
+            <div className="w-10 h-10 border-4 border-[#0B132B] dark:border-[#E89A5B] border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : wishlistProducts.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-black/5 dark:border-white/10 p-12 text-center max-w-lg mx-auto space-y-6 shadow-sm">
+            <div className="w-20 h-20 mx-auto rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center">
+              <Heart className="w-10 h-10" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white font-['Poppins']">
-              {t('emptyTitle', 'Your wishlist is empty')}
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-gray-400 leading-relaxed">
-              {t('emptySub', 'Explore our shop catalog and save your favorite electronics and gadgets here.')}
-            </p>
+            <div className="space-y-2">
+              <h3 className="text-base font-black uppercase tracking-wider">{isRtl ? 'قائمة المفضلة فارغة حالياً' : 'Your Wishlist is Empty'}</h3>
+              <p className="text-xs text-slate-500 dark:text-gray-400 leading-relaxed">
+                {isRtl ? 'استكشف الكتالوج الفاخر وأضف قطعك المفضلة بضغط زر القلب لتظهر هنا.' : 'Explore our luxury catalog and tap the heart icon on any asset to save it here.'}
+              </p>
+            </div>
             <Link
-              to="/shop"
-              className="inline-block px-6 py-3 bg-[#17233C] hover:bg-[#E89A5B] dark:bg-[#E89A5B] dark:hover:bg-[#d4894d] text-white text-xs font-semibold rounded-xl transition shadow-xs"
+              to="/products"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl bg-[#0B132B] dark:bg-[#E89A5B] text-white dark:text-[#0B132B] text-xs font-bold uppercase tracking-wider transition hover:opacity-90 shadow-lg"
             >
-              {t('exploreShop', 'Explore Shop')}
+              <span>{isRtl ? 'استعراض الكتالوج' : 'Explore Catalog'}</span>
+              {isRtl ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {sortedItems.map((prod) => {
-              const pId = prod._id || prod.id;
-              const prodName = prod.name || prod.title || t('productDefault', 'Product');
-              const imgUrl = extractImage(prod);
-              const price = Number(prod.price) || 0;
-              const discountPrice = Number(prod.discountPrice) || 0;
-              const hasDiscount = discountPrice > 0 && discountPrice < price;
-              const finalPrice = hasDiscount ? discountPrice : price;
-              const savedAmount = hasDiscount ? price - discountPrice : 0;
-              const isAdded = addedIds.includes(pId);
-              const inStock = prod.stock === undefined || prod.stock > 0;
-
-              const rawCategory = typeof prod.category === 'object' ? prod.category?.name : prod.category;
-              const sanitizedCategory = rawCategory
-                ? String(rawCategory).toLowerCase().trim().replace(/[\s-_]+/g, '')
-                : '';
-              const displayCategory = rawCategory
-                ? t(`cat_${sanitizedCategory}`, {
-                    defaultValue: t(`cat_${String(rawCategory).toLowerCase().trim()}`, {
-                      defaultValue: rawCategory,
-                    }),
-                  })
-                : '';
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 justify-center">
+            {wishlistProducts.map((product) => {
+              const pId = product._id || product.id;
+              const imageUrl = product.images?.[0]?.url || product.image || 'https://placehold.co/400';
 
               return (
-                <div
-                  key={pId}
-                  className="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200/80 dark:border-gray-700 p-4 flex flex-col justify-between shadow-xs hover:shadow-lg transition-all duration-200 group relative"
-                >
-                  {/* زر الإزالة */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveWithUndo(prod)}
-                    className="absolute top-3 end-3 z-10 w-8 h-8 rounded-full bg-white/90 dark:bg-gray-700/90 text-slate-400 hover:text-rose-500 shadow-xs flex items-center justify-center transition cursor-pointer"
-                    title={t('remove', 'Remove')}
-                  >
-                    <i className="fa-solid fa-xmark text-xs"></i>
-                  </button>
-
+                <div key={pId} className="bg-white dark:bg-gray-800 rounded-3xl border border-black/5 dark:border-white/10 overflow-hidden shadow-xs hover:shadow-xl transition-all group flex flex-col justify-between">
                   <div>
-                    <div className="aspect-square w-full rounded-xl overflow-hidden bg-slate-50 dark:bg-gray-900 mb-3 relative">
-                      <Link to={`/products/${pId}`} className="block w-full h-full">
+                    <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-gray-900">
+                      <Link to={`/products/${pId}`}>
                         <img
-                          src={imgUrl}
-                          alt={prodName}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          src={imageUrl}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       </Link>
-
-                      {hasDiscount && (
-                        <span className="absolute top-2 start-2 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#E89A5B] text-white shadow-xs">
-                          {t('saveAmount', { amount: savedAmount, defaultValue: `Save ${savedAmount}` })} {t('currency', 'EGP')}
-                        </span>
-                      )}
-
-                      <span
-                        className={`absolute bottom-2 start-2 px-2 py-0.5 rounded-md text-[10px] font-semibold backdrop-blur-xs ${
-                          inStock
-                            ? 'bg-white/95 dark:bg-gray-900/95 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-rose-100/95 dark:bg-rose-950/95 text-rose-600 dark:text-rose-400'
-                        }`}
-                      >
-                        {inStock ? t('inStock', 'In Stock') : t('outOfStock', 'Out of Stock')}
-                      </span>
-
                       <button
                         type="button"
-                        onClick={() => setQuickViewProduct(prod)}
-                        className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition duration-200 px-3 py-1 bg-white/90 dark:bg-gray-800/90 text-[10px] font-bold rounded-lg shadow-sm hover:bg-[#E89A5B] hover:text-white cursor-pointer"
+                        onClick={() => toggleWishlist(pId)}
+                        className="absolute top-3 end-3 p-2.5 rounded-full bg-rose-500 text-white shadow-md hover:scale-110 transition cursor-pointer"
+                        title="Remove"
                       >
-                        {t('quickView', 'Quick View')}
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
-                    {displayCategory && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#E89A5B] block mb-1">
-                        {displayCategory}
-                      </span>
-                    )}
-
-                    <Link
-                      to={`/products/${pId}`}
-                      className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white hover:text-[#E89A5B] dark:hover:text-[#E89A5B] transition-colors line-clamp-2"
-                    >
-                      {prodName}
-                    </Link>
+                    <div className="p-5 space-y-2">
+                      <span className="text-[10px] font-bold text-[#E89A5B] uppercase tracking-wider">{product.category || 'Luxury'}</span>
+                      <Link to={`/products/${pId}`}>
+                        <h3 className="font-bold text-xs line-clamp-1 hover:text-[#E89A5B] transition-colors">{product.name}</h3>
+                      </Link>
+                      <span className="font-mono text-sm font-black text-[#0B132B] dark:text-white">${product.price}</span>
+                    </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-gray-700/80">
-                    <div className="flex items-baseline gap-2 mb-3">
-                      <span className="text-base font-bold text-slate-900 dark:text-white font-mono">
-                        {finalPrice} {t('currency', 'EGP')}
-                      </span>
-                      {hasDiscount && (
-                        <span className="text-xs text-slate-400 dark:text-gray-500 line-through">
-                          {price} {t('currency', 'EGP')}
-                        </span>
-                      )}
-                    </div>
-
+                  <div className="p-5 pt-0">
                     <button
                       type="button"
-                      disabled={!inStock || isAdded}
-                      onClick={() => handleAddToCart(prod)}
-                      className={`w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs ${
-                        !inStock
-                          ? 'bg-slate-100 dark:bg-gray-700 text-slate-400 dark:text-gray-500 cursor-not-allowed'
-                          : isAdded
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-[#17233C] hover:bg-[#E89A5B] dark:bg-[#E89A5B] dark:hover:bg-[#d4894d] text-white'
-                      }`}
+                      onClick={() => addToCartGlobal(pId, 1)}
+                      className="w-full py-2.5 rounded-xl bg-[#0B132B] dark:bg-[#E89A5B] text-white dark:text-[#0B132B] text-xs font-bold uppercase tracking-wider transition hover:opacity-90 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                     >
-                      {isAdded ? (
-                        <>
-                          <i className="fa-solid fa-check text-xs"></i>
-                          <span>{t('addedToCart', 'Added ✓')}</span>
-                        </>
-                      ) : (
-                        <>
-                          <i className="fa-solid fa-cart-shopping text-xs"></i>
-                          <span>{t('addToCart', 'Add to Cart')}</span>
-                        </>
-                      )}
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      <span>{isRtl ? 'نقل إلى السلة' : 'Move to Cart'}</span>
                     </button>
                   </div>
                 </div>
@@ -294,16 +138,8 @@ export default function Wishlist() {
             })}
           </div>
         )}
-      </div>
 
-      <QuickViewModal
-        product={quickViewProduct}
-        isOpen={Boolean(quickViewProduct)}
-        onClose={() => setQuickViewProduct(null)}
-        onAddToCart={addToCart}
-        onToggleWishlist={toggleWishlist}
-        isWishlisted={true}
-      />
+      </div>
     </div>
   );
 }

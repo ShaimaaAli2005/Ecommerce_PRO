@@ -1,266 +1,140 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { ShoppingBag, Star, Heart } from 'lucide-react';
+import { useCart } from '../../../../context/CartContext';
+import wishlistService from '../../../../services/wishlistService';
+import toast from 'react-hot-toast';
 
-const extractImages = (product) => {
-  if (Array.isArray(product?.images) && product.images.length > 0) {
-    return product.images.map((img) => (typeof img === "string" ? img : img?.url)).filter(Boolean);
-  }
-  if (product?.image) return [product.image];
-  if (product?.imageUrl) return [product.imageUrl];
-  return ["https://placehold.co/600x600?text=No+Image"];
-};
+export default function ProductCard({ product, onWishlistToggle }) {
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language || 'en';
+  const isRtl = currentLang === 'ar';
 
-const ProductCard = ({
-  product = {},
-  onAddToCart,
-  onAddToWishlist,
-  onQuickView,
-  onToggleCompare,
-  isCompared = false,
-  isWishlisted = false,
-  viewMode = "grid",
-}) => {
-  const { t, i18n } = useTranslation('shop');
-  const isRtl = i18n.language === 'ar';
+  const { addToCartGlobal } = useCart();
+  const [isSaved, setIsSaved] = useState(product?.isSaved || false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [isAdded, setIsAdded] = useState(false);
-  const [activeImgIdx, setActiveImgIdx] = useState(0);
+  const productId = product?._id || product?.id;
+  const imageUrl = product?.images?.[0]?.url || product?.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
+  const categoryName = product?.category || 'Luxury';
 
-  const images = extractImages(product);
-  const productId = product._id || product.id || "";
-  const productName = product.name || product.title || t('productDefault', 'Product');
-  const price = Number(product.price) || 0;
-  const discountPrice = Number(product.discountPrice) || 0;
-  const discount = Number(product.discount) || 0;
-
-  // استخراج وترجمة اسم القسم سواء كان نصاً أو كائناً من السيرفر
-  const rawCategory = typeof product.category === 'object' ? product.category?.name : product.category;
-  const displayCategory = rawCategory 
-    ? t(`cat_${String(rawCategory).toLowerCase().trim()}`, { defaultValue: rawCategory }) 
-    : '';
-
-  let finalPrice = price;
-  let hasDiscount = false;
-
-  if (discountPrice > 0 && discountPrice < price) {
-    finalPrice = discountPrice;
-    hasDiscount = true;
-  } else if (discount > 0) {
-    finalPrice = price - (price * discount) / 100;
-    hasDiscount = true;
-  }
-
-  const handleAdd = (e) => {
+  // معالجة الضغط على المفضلة (Wishlist) مع التعامل الآمن مع الأخطاء والمصادقة
+  const handleWishlistToggle = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onAddToCart) {
-      onAddToCart(product);
-      setIsAdded(true);
-      setTimeout(() => setIsAdded(false), 1200);
+
+    if (!productId) return;
+
+    setIsLoading(true);
+    try {
+      if (isSaved) {
+        const res = await wishlistService.removeFromWishlist(productId);
+        if (res?.success) {
+          setIsSaved(false);
+          toast.success(isRtl ? 'تمت إزالة المنتج من المفضلة' : 'Removed from wishlist');
+          if (onWishlistToggle) onWishlistToggle(productId, false);
+        }
+      } else {
+        const res = await wishlistService.addToWishlist(productId);
+        if (res?.success) {
+          setIsSaved(true);
+          toast.success(isRtl ? 'تمت إضافة المنتج إلى المفضلة' : 'Added to wishlist');
+          if (onWishlistToggle) onWishlistToggle(productId, true);
+        }
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        toast.error(isRtl ? 'يرجى تسجيل الدخول أولاً' : 'Please sign in first');
+      } else {
+        toast.error(isRtl ? 'حدث خطأ ما، يرجى المحاولة مجدداً' : 'An error occurred, please try again');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleNextImg = (e) => {
+  // معالجة الإضافة السريعة للسلة
+  const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setActiveImgIdx((prev) => (prev + 1) % images.length);
+    if (productId) {
+      addToCartGlobal(productId, 1);
+    }
   };
-
-  const handlePrevImg = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setActiveImgIdx((prev) => (prev - 1 + images.length) % images.length);
-  };
-
-  const isList = viewMode === "list";
 
   return (
-    <article
-      className={`group relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex ${
-        isList ? "flex-col sm:flex-row items-stretch gap-2" : "flex-col justify-between"
-      }`}
+    <Link
+      to={`/products/${productId}`}
+      dir={isRtl ? 'rtl' : 'ltr'}
+      className="group bg-white dark:bg-[#111A35] rounded-3xl border border-[#E5E7EB] dark:border-white/10 overflow-hidden shadow-xs hover:shadow-2xl transition-all duration-500 flex flex-col justify-between font-['Poppins']"
     >
-      {/* المعرض المصغر للصور */}
-      <div
-        className={`relative overflow-hidden bg-slate-50 dark:bg-gray-900 shrink-0 ${
-          isList ? "w-full sm:w-64 aspect-video sm:aspect-square" : "w-full aspect-square"
-        }`}
-      >
-        <Link to={`/products/${productId}`} className="block w-full h-full">
-          <img
-            src={images[activeImgIdx]}
-            alt={productName}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = "https://placehold.co/600x600?text=No+Image";
-            }}
-          />
-        </Link>
+      {/* صورة المنتج وشارات التخفيض والمفضلة */}
+      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-white/5">
+        <img
+          src={imageUrl}
+          alt={product?.name || 'Product'}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+        />
 
-        {images.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={handlePrevImg}
-              aria-label="Previous image"
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-white/80 dark:bg-gray-800/80 text-slate-700 dark:text-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-xs hover:bg-white dark:hover:bg-gray-700 cursor-pointer z-10"
-            >
-              <i className={`fa-solid ${isRtl ? 'fa-chevron-right' : 'fa-chevron-left'} text-[10px]`}></i>
-            </button>
-            <button
-              type="button"
-              onClick={handleNextImg}
-              aria-label="Next image"
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-white/80 dark:bg-gray-800/80 text-slate-700 dark:text-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-xs hover:bg-white dark:hover:bg-gray-700 cursor-pointer z-10"
-            >
-              <i className={`fa-solid ${isRtl ? 'fa-chevron-left' : 'fa-chevron-right'} text-[10px]`}></i>
-            </button>
-
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
-              {images.map((_, idx) => (
-                <span
-                  key={idx}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    activeImgIdx === idx ? "w-4 bg-[#E89A5B]" : "w-1.5 bg-white/60 dark:bg-gray-500"
-                  }`}
-                />
-              ))}
-            </div>
-          </>
-        )}
-
-        {hasDiscount && (
-          <span className="absolute start-3 top-3 rounded-full bg-[#E89A5B] px-3 py-1 text-xs font-bold text-white shadow-xs z-10">
-            {discount > 0 ? `-${discount}%` : "SALE"}
-          </span>
-        )}
-
-        <div className="absolute end-3 top-3 flex flex-col gap-2 z-10">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onAddToWishlist?.(product);
-            }}
-            className={`flex h-9 w-9 items-center justify-center rounded-full shadow-xs transition-all duration-200 cursor-pointer ${
-              isWishlisted
-                ? "bg-rose-50 text-rose-500 dark:bg-rose-950/50"
-                : "bg-white/90 dark:bg-gray-800/90 text-slate-700 dark:text-gray-200 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/40"
-            }`}
-            aria-label="Wishlist"
-          >
-            <i className={isWishlisted ? "fa-solid fa-heart text-rose-500" : "fa-regular fa-heart"}></i>
-          </button>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleCompare?.(product);
-            }}
-            className={`flex h-9 w-9 items-center justify-center rounded-full shadow-xs transition-all duration-200 cursor-pointer ${
-              isCompared
-                ? "bg-[#17233C] text-[#E89A5B] dark:bg-gray-700"
-                : "bg-white/90 dark:bg-gray-800/90 text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700"
-            }`}
-            title={t('compareProducts', 'Compare')}
-            aria-label={t('compareProducts', 'Compare')}
-          >
-            <i className="fa-solid fa-code-compare text-xs"></i>
-          </button>
-        </div>
-
+        {/* زر المفضلة الديناميكي */}
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onQuickView?.(product);
-          }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 px-4 py-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs text-xs font-bold text-slate-800 dark:text-white rounded-xl shadow-md hover:bg-[#E89A5B] hover:text-white flex items-center gap-1.5 cursor-pointer z-10 whitespace-nowrap"
+          onClick={handleWishlistToggle}
+          disabled={isLoading}
+          aria-label="Wishlist toggle"
+          className={`absolute top-3 ${
+            isRtl ? 'left-3' : 'right-3'
+          } w-10 h-10 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-md flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110`}
         >
-          <i className="fa-regular fa-eye"></i>
-          <span>{t('quickView', 'Quick View')}</span>
+          <Heart className={`w-4 h-4 transition-colors ${isSaved ? 'text-rose-500 fill-rose-500 scale-110' : 'text-gray-600 dark:text-white hover:text-rose-500'}`} />
         </button>
+
+        {/* شارة التخفيض */}
+        {product?.discountPrice && (
+          <span className="absolute bottom-3 start-3 bg-[#E89A5B] text-[#0B132B] text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shadow">
+            {isRtl ? 'تخفيض' : 'Sale'}
+          </span>
+        )}
       </div>
 
       {/* تفاصيل المنتج */}
-      <div className="p-4 sm:p-5 flex flex-col flex-grow justify-between gap-3">
-        <div>
-          <div className="flex items-center justify-between">
-            {displayCategory && (
-              <p className="text-[11px] font-bold tracking-wider uppercase text-[#E89A5B]">
-                {displayCategory}
-              </p>
-            )}
-
-            <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400">
-              <i className="fa-solid fa-star text-[#E89A5B] text-[10px]"></i>
-              <span className="font-semibold text-slate-700 dark:text-gray-200">
-                {product.rating ? Number(product.rating).toFixed(1) : "4.8"}
-              </span>
-              <span className="text-[10px]">({product.reviewsCount || 14})</span>
-            </div>
-          </div>
-
-          <Link
-            to={`/products/${productId}`}
-            className="mt-1 block font-['Poppins'] text-base font-semibold text-slate-900 dark:text-white hover:text-[#E89A5B] dark:hover:text-[#E89A5B] transition-colors leading-snug line-clamp-2"
-          >
-            {productName}
-          </Link>
-
-          {isList && (
-            <p className="mt-2 text-xs text-slate-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
-              {product.description || product.shortDescription || ""}
-            </p>
-          )}
+      <div className="p-5 flex flex-col flex-grow justify-between space-y-4">
+        <div className="space-y-1.5">
+          <span className="text-[10px] font-bold tracking-widest uppercase text-[#E89A5B] block">
+            {t(`store.categories.${categoryName.toLowerCase()}`, categoryName)}
+          </span>
+          <h3 className="text-sm font-bold text-[#17233C] dark:text-white line-clamp-1 group-hover:text-[#E89A5B] transition-colors">
+            {product?.name || 'Luxury Item'}
+          </h3>
+          <p className="text-xs text-[#7B8190] dark:text-slate-400 line-clamp-1 font-light">
+            {product?.shortDescription || product?.description || ''}
+          </p>
         </div>
 
-        <div className={`pt-2 ${isList ? "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" : ""}`}>
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold text-slate-900 dark:text-white">
-              {finalPrice} <span className="text-xs font-semibold">{t('currency', 'EGP')}</span>
+        <div className="pt-3 border-t border-[#E5E7EB] dark:border-white/10 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-black text-[#17233C] dark:text-white font-mono">
+              ${product?.discountPrice || product?.price || '0.00'}
             </span>
-            {hasDiscount && (
-              <span className="text-xs text-slate-400 dark:text-gray-500 line-through">
-                {price} {t('currency', 'EGP')}
+            {product?.discountPrice && (
+              <span className="text-xs text-gray-400 dark:text-slate-500 line-through font-mono">
+                ${product?.price}
               </span>
             )}
           </div>
 
+          {/* زر إضافة سريع للسلة */}
           <button
             type="button"
-            onClick={handleAdd}
-            disabled={isAdded}
-            className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-xs font-semibold transition-all duration-300 shadow-xs cursor-pointer ${
-              isList ? "w-full sm:w-44" : "w-full mt-3"
-            } ${
-              isAdded
-                ? "bg-emerald-600 text-white"
-                : "bg-[#17233C] hover:bg-[#E89A5B] dark:bg-[#E89A5B] dark:hover:bg-[#d4894d] text-white active:scale-95"
-            }`}
+            onClick={handleAddToCart}
+            className="p-2.5 rounded-xl bg-[#0B132B] dark:bg-[#E89A5B] text-white dark:text-[#0B132B] hover:opacity-90 transition shadow-sm flex items-center justify-center cursor-pointer"
+            title={t('store.catalog.add_to_cart', 'Add to Cart')}
           >
-            {isAdded ? (
-              <>
-                <i className="fa-solid fa-check text-xs"></i>
-                <span>{t('addedToCart', 'Added ✓')}</span>
-              </>
-            ) : (
-              <>
-                <i className="fa-solid fa-cart-shopping text-xs"></i>
-                <span>{t('addToCart', 'Add to Cart')}</span>
-              </>
-            )}
+            <ShoppingBag className="w-4 h-4" />
           </button>
         </div>
       </div>
-    </article>
+    </Link>
   );
-};
-
-export default ProductCard;
+}

@@ -47,6 +47,14 @@ export const logout = async () => {
  * GET /auth/me
  */
 export const getMe = async () => {
+  const isAdminRoute = window.location.pathname.startsWith("/admin");
+  const token = isAdminRoute 
+    ? localStorage.getItem("admin_token") || localStorage.getItem("token") 
+    : localStorage.getItem("token");
+
+  if (!token) {
+    return null; // إرجاع null بأمان تام دون استخدام navigate أو toast داخل ملف الخدمات
+  }
   const response = await axiosInstance.get("/auth/me");
   return response.data;
 };

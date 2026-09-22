@@ -2,22 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../../context/AuthContext';
+import authService from '../../../services/authService';
 
 const Login = () => {
-  const { t, i18n } = useTranslation('auth');
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { loginUser } = useAuth();
 
   const currentLang = i18n.language || 'en';
   const isRtl = currentLang === 'ar';
-  const destination = location.state?.from?.pathname || '/shop';
-
-  // حالة الثيم
-  const [isDark, setIsDark] = useState(() => {
-    return document.documentElement.classList.contains('dark') || localStorage.getItem('theme') === 'dark';
-  });
+  const destination = location.state?.from?.pathname || '/';
 
   const [formData, setFormData] = useState({
     email: localStorage.getItem('luma_remembered_email') || '',
@@ -38,26 +32,6 @@ const Login = () => {
     };
   }, []);
 
-  const toggleTheme = () => {
-    const newTheme = !isDark;
-    setIsDark(newTheme);
-    if (newTheme) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
-
-  const toggleLanguage = () => {
-    const nextLang = currentLang === 'en' ? 'ar' : 'en';
-    i18n.changeLanguage(nextLang);
-    localStorage.setItem('luma_lang', nextLang);
-    document.documentElement.dir = nextLang === 'ar' ? 'rtl' : 'ltr';
-    document.documentElement.lang = nextLang;
-  };
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -72,15 +46,13 @@ const Login = () => {
   const validate = () => {
     const newErrors = {};
     if (!formData.email.trim()) {
-      newErrors.email = t('errors.emailRequired');
+      newErrors.email = t('login.errors.emailRequired', 'Email is required');
     } else if (!/\S+@\S+\.\S+/.test(formData.email.trim())) {
-      newErrors.email = t('errors.emailInvalid');
+      newErrors.email = t('login.errors.emailInvalid', 'Invalid email address');
     }
 
     if (!formData.password) {
-      newErrors.password = t('errors.passwordRequired');
-    } else if (formData.password.length < 6) {
-      newErrors.password = t('errors.passwordMin');
+      newErrors.password = t('login.errors.passwordRequired', 'Password is required');
     }
 
     return newErrors;
@@ -98,10 +70,15 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      await loginUser({
+      const res = await authService.login({
         email: formData.email.trim(),
         password: formData.password,
       });
+
+      const token = res?.token || res?.data?.token;
+      if (token) {
+        localStorage.setItem('token', token);
+      }
 
       if (formData.rememberMe) {
         localStorage.setItem('luma_remembered_email', formData.email.trim());
@@ -109,12 +86,10 @@ const Login = () => {
         localStorage.removeItem('luma_remembered_email');
       }
 
-      toast.success(isRtl ? 'تم تسجيل الدخول بنجاح!' : 'Login successful!');
+      toast.success(t('login.success.loginSuccess', 'Logged in successfully'));
       navigate(destination, { replace: true });
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.message ||
-        (isRtl ? 'فشل تسجيل الدخول، تأكد من صحة البيانات' : 'Unable to login, please check your credentials');
+      const errorMsg = err.response?.data?.message || t('login.errors.loginFailed', 'Login failed, please check your credentials');
       toast.error(errorMsg);
     } finally {
       setIsLoading(false);
@@ -126,94 +101,72 @@ const Login = () => {
     timerRef.current = setTimeout(() => {
       localStorage.setItem('token', 'sample-google-oauth-token-999');
       setIsGoogleLoading(false);
+      toast.success(t('login.success.googleSuccess', 'Google login successful'));
       navigate(destination, { replace: true });
-    }, 800);
+    }, 1000);
   };
 
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className="min-h-screen w-full bg-[#F7F5F0] dark:bg-[#0F172A] flex flex-col justify-center items-center p-0 md:p-6 lg:p-10 font-['Inter'] relative select-none transition-colors duration-300"
+      className="min-h-[85vh] w-full flex flex-col justify-center items-center py-12 px-4 font-['Inter'] select-none transition-colors duration-300"
     >
-      {/* شريط التحكم العلوي: زر الثيم وزر اللغة */}
-      <div className="fixed top-5 right-6 z-50 flex items-center gap-2" dir="ltr">
-        <button
-          type="button"
-          onClick={toggleLanguage}
-          className="flex items-center gap-2 backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-[#E5E7EB] dark:border-gray-700 hover:border-[#17233C] dark:hover:border-[#E89A5B] px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#17233C] dark:text-gray-200 shadow-sm transition cursor-pointer"
-        >
-          <span className="w-2 h-2 rounded-full bg-[#E89A5B]"></span>
-          <span>{t('switchLang')}</span>
-        </button>
+      <div className="w-full max-w-5xl bg-white dark:bg-[#111A35] md:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.5)] border border-[#E5E7EB] dark:border-white/10 overflow-hidden flex flex-col md:flex-row min-h-[640px] transition-colors duration-300">
         
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label="Toggle theme"
-          className="w-9 h-9 rounded-full backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-[#E5E7EB] dark:border-gray-700 text-[#17233C] dark:text-[#E89A5B] flex items-center justify-center shadow-sm hover:scale-105 transition cursor-pointer"
-        >
-          {isDark ? '☀️' : '🌙'}
-        </button>
-
-        
-      </div>
-
-      <div className="w-full max-w-5xl bg-white dark:bg-gray-800 md:rounded-3xl shadow-[0_20px_60px_-15px_rgba(23,35,60,0.08)] border border-[#EBE8E1] dark:border-gray-700 overflow-hidden flex flex-col md:flex-row min-h-[640px] transition-colors duration-300">
-        
-        {/* الجانب البصري */}
+        {/* الجانب البصري الفاخر */}
         <div className="relative md:w-5/12 bg-[#0B132B] text-white p-8 md:p-12 flex flex-col justify-between overflow-hidden">
           <div className="absolute inset-0 z-0 overflow-hidden">
             <img
               src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1600&q=85"
               alt="LUMA Luxury Interior"
-              className="w-full h-full object-cover opacity-75 contrast-[1.08] brightness-[0.85] scale-100 hover:scale-105 transition-transform duration-700 ease-out"
+              className="w-full h-full object-cover opacity-60 contrast-[1.1] brightness-[0.8] scale-100 hover:scale-105 transition-transform duration-1000 ease-out"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0B132B] via-[#0B132B]/40 to-black/30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0B132B] via-[#0B132B]/50 to-transparent" />
           </div>
 
           <div className="relative z-10">
             <Link to="/" className="inline-block">
-              <span className="text-3xl font-extrabold tracking-widest font-['Poppins'] text-white drop-shadow-md">
-                {t('brand')}
+              <span className="text-3xl font-black tracking-[0.25em] font-['Poppins'] text-white drop-shadow-lg">
+                {t('brand', 'LUMA')}
               </span>
             </Link>
-            <div className="h-1 w-10 bg-[#E89A5B] mt-2 rounded-full shadow-sm"></div>
+            <div className="h-1 w-12 bg-[#E89A5B] mt-2 rounded-full shadow-lg"></div>
           </div>
 
-          <div className="relative z-10 my-8 backdrop-blur-[2px] bg-black/25 p-4 rounded-2xl border border-white/10">
-            <span className="text-[11px] font-bold tracking-widest text-[#E89A5B] uppercase block mb-2 drop-shadow-sm">
-              {t('login.showcase.tagline')}
+          <div className="relative z-10 my-8 backdrop-blur-md bg-black/30 p-5 rounded-2xl border border-white/10 shadow-2xl">
+            <span className="text-[10px] font-bold tracking-[0.2em] text-[#E89A5B] uppercase block mb-2">
+              {t('login.showcase.tagline', 'Curated Excellence')}
             </span>
-            <p className="text-xl sm:text-2xl font-normal leading-snug font-['Poppins'] text-white drop-shadow-md">
-              {t('login.showcase.quote')}
+            <p className="text-xl sm:text-2xl font-light leading-snug font-['Poppins'] text-white/95">
+              {t('login.showcase.quote', 'Where uncompromising luxury meets flawless digital architecture.')}
             </p>
           </div>
 
-          <div className="relative z-10 backdrop-blur-md bg-white/15 border border-white/25 p-4 rounded-2xl flex items-center gap-3.5 shadow-xl">
-            <div className="w-10 h-10 rounded-xl bg-[#E89A5B] text-white flex items-center justify-center font-bold text-base shadow-sm">
-              ★
+          <div className="relative z-10 backdrop-blur-xl bg-white/10 border border-white/20 p-4 rounded-2xl flex items-center gap-3.5 shadow-2xl">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E89A5B] to-[#b86d30] text-white flex items-center justify-center font-bold text-base shadow-md">
+              ✦
             </div>
             <div>
               <p className="text-xs font-bold text-white tracking-wide">
-                {t('login.showcase.badgeTitle')}
+                {t('login.showcase.badgeTitle', 'Secure Global Access')}
               </p>
-              <p className="text-[11px] text-slate-100 font-light">
-                {t('login.showcase.badgeDesc')}
+              <p className="text-[11px] text-slate-300 font-light">
+                {t('login.showcase.badgeDesc', 'Encrypted sessions tailored for VIP clients.')}
               </p>
             </div>
           </div>
         </div>
 
-        {/* الجانب الأيمن */}
-        <div className="md:w-7/12 p-8 sm:p-12 lg:p-14 flex flex-col justify-center bg-white dark:bg-gray-800 transition-colors duration-300">
+        {/* الجانب الأيمن (نموذج الإدخال) */}
+        <div className="md:w-7/12 p-8 sm:p-12 lg:p-14 flex flex-col justify-center bg-white dark:bg-[#111A35] transition-colors duration-300">
           <div className="max-w-md w-full mx-auto">
             
-            <div className="mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#17233C] dark:text-white tracking-tight font-['Poppins']">
-                {t('login.title')}
+            <div className="mb-8">
+              <h2 className="text-2xl sm:text-3xl font-black text-[#17233C] dark:text-white tracking-tight font-['Poppins']">
+                {t('login.title', 'Welcome Back')}
               </h2>
-              <p className="text-sm text-[#7B8190] dark:text-gray-400 mt-1.5 leading-relaxed">
-                {t('login.subtitle')}
+              <p className="text-xs sm:text-sm text-[#7B8190] dark:text-slate-400 mt-2 leading-relaxed font-light">
+                {t('login.subtitle', 'Enter your credentials to access your curated dashboard.')}
               </p>
             </div>
 
@@ -221,7 +174,7 @@ const Login = () => {
               type="button"
               onClick={handleGoogleLogin}
               disabled={isGoogleLoading || isLoading}
-              className="w-full bg-white dark:bg-gray-700/50 hover:bg-[#F9FAFB] dark:hover:bg-gray-700 border border-[#E5E7EB] dark:border-gray-600 text-[#1F2937] dark:text-white py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 shadow-xs flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60"
+              className="w-full bg-[#F9FAFB] dark:bg-white/5 hover:bg-[#F3F4F6] dark:hover:bg-white/10 border border-[#E5E7EB] dark:border-white/15 text-[#1F2937] dark:text-white py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 shadow-xs flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60"
             >
               {isGoogleLoading ? (
                 <svg className="animate-spin h-4 w-4 text-[#17233C] dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -236,52 +189,52 @@ const Login = () => {
                   <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
                 </svg>
               )}
-              <span>{t('login.googleBtn')}</span>
+              <span>{t('login.googleBtn', 'Continue with Google')}</span>
             </button>
 
-            <div className="relative my-5 text-center">
+            <div className="relative my-6 text-center">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#EBE8E1] dark:border-gray-700"></div>
+                <div className="w-full border-t border-[#E5E7EB] dark:border-white/10"></div>
               </div>
-              <span className="relative bg-white dark:bg-gray-800 px-3 text-xs text-[#9CA3AF] dark:text-gray-400">
-                {t('login.showcase.orDivider')}
+              <span className="relative bg-white dark:bg-[#111A35] px-3 text-[11px] uppercase font-bold tracking-widest text-[#7B8190] dark:text-slate-400">
+                {t('login.showcase.orDivider', 'Or')}
               </span>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#1F2937] dark:text-gray-300 mb-1.5">
-                  {t('login.emailLabel')}
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1F2937] dark:text-slate-300 mb-2">
+                  {t('login.emailLabel', 'Email Address')}
                 </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder={t('login.emailPlaceholder')}
-                  className={`w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all duration-200 bg-[#FAFAFA] dark:bg-gray-900 dark:text-white ${
+                  placeholder={t('login.emailPlaceholder', 'name@example.com')}
+                  className={`w-full px-4 py-3 rounded-xl border text-xs outline-none transition-all duration-300 bg-[#FAFAFA] dark:bg-white/5 text-[#1F2937] dark:text-white ${
                     errors.email
-                      ? 'border-[#C95C5C] focus:ring-2 focus:ring-[#C95C5C]/20'
-                      : 'border-[#E5E7EB] dark:border-gray-700 focus:border-[#17233C] dark:focus:border-[#E89A5B]'
+                      ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+                      : 'border-[#E5E7EB] dark:border-white/15 focus:border-[#17233C] dark:focus:border-[#E89A5B]'
                   }`}
                 />
                 {errors.email && (
-                  <span className="text-xs text-[#C95C5C] mt-1 flex items-center gap-1">
+                  <span className="text-[11px] text-rose-500 dark:text-rose-400 mt-1.5 flex items-center gap-1 font-medium">
                     <span>⚠</span> {errors.email}
                   </span>
                 )}
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#1F2937] dark:text-gray-300">
-                    {t('login.passwordLabel')}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1F2937] dark:text-slate-300">
+                    {t('login.passwordLabel', 'Password')}
                   </label>
                   <Link
                     to="/forgot-password"
-                    className="text-xs font-medium text-[#7B8190] dark:text-gray-400 hover:text-[#E89A5B] dark:hover:text-[#E89A5B] transition-colors"
+                    className="text-[11px] font-medium text-[#17233C] dark:text-[#E89A5B] hover:underline transition-colors"
                   >
-                    {t('login.forgotPassword')}
+                    {t('login.forgotPassword', 'Forgot Password?')}
                   </Link>
                 </div>
                 <div className="relative">
@@ -290,13 +243,13 @@ const Login = () => {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder={t('login.passwordPlaceholder')}
-                    className={`w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all duration-200 bg-[#FAFAFA] dark:bg-gray-900 dark:text-white ${
+                    placeholder={t('login.passwordPlaceholder', '••••••••')}
+                    className={`w-full px-4 py-3 rounded-xl border text-xs outline-none transition-all duration-300 bg-[#FAFAFA] dark:bg-white/5 text-[#1F2937] dark:text-white ${
                       isRtl ? 'pl-11' : 'pr-11'
                     } ${
                       errors.password
-                        ? 'border-[#C95C5C] focus:ring-2 focus:ring-[#C95C5C]/20'
-                        : 'border-[#E5E7EB] dark:border-gray-700 focus:border-[#17233C] dark:focus:border-[#E89A5B]'
+                        ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+                        : 'border-[#E5E7EB] dark:border-white/15 focus:border-[#17233C] dark:focus:border-[#E89A5B]'
                     }`}
                   />
                   <button
@@ -305,29 +258,29 @@ const Login = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className={`absolute top-1/2 -translate-y-1/2 ${
                       isRtl ? 'left-3' : 'right-3'
-                    } text-xs text-[#7B8190] dark:text-gray-400 hover:text-[#17233C] dark:hover:text-white p-1 cursor-pointer transition-colors`}
+                    } text-xs text-[#7B8190] dark:text-slate-400 hover:text-[#17233C] dark:hover:text-white p-1 cursor-pointer transition-colors`}
                   >
                     {showPassword ? '👁️' : '👁️‍🗨️'}
                   </button>
                 </div>
                 {errors.password && (
-                  <span className="text-xs text-[#C95C5C] mt-1 flex items-center gap-1">
+                  <span className="text-[11px] text-rose-500 dark:text-rose-400 mt-1.5 flex items-center gap-1 font-medium">
                     <span>⚠</span> {errors.password}
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center">
-                <label className="flex items-center gap-2.5 text-xs text-[#7B8190] dark:text-gray-400 cursor-pointer group">
+              <div className="flex items-center pt-1">
+                <label className="flex items-center gap-2.5 text-xs text-[#7B8190] dark:text-slate-300 cursor-pointer group">
                   <input
                     type="checkbox"
                     name="rememberMe"
                     checked={formData.rememberMe}
                     onChange={handleChange}
-                    className="w-4 h-4 rounded text-[#17233C] dark:text-[#E89A5B] border-gray-300 dark:border-gray-600 focus:ring-0 cursor-pointer accent-[#17233C] dark:accent-[#E89A5B]"
+                    className="w-4 h-4 rounded text-[#17233C] dark:text-[#E89A5B] border-[#D1D5DB] dark:border-white/20 bg-transparent focus:ring-0 cursor-pointer accent-[#17233C] dark:accent-[#E89A5B]"
                   />
-                  <span className="group-hover:text-[#17233C] dark:group-hover:text-white transition-colors">
-                    {t('login.rememberMe')}
+                  <span className="group-hover:text-[#17233C] dark:group-hover:text-white transition-colors font-light">
+                    {t('login.rememberMe', 'Remember me')}
                   </span>
                 </label>
               </div>
@@ -335,20 +288,20 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={isLoading || isGoogleLoading}
-                className="w-full bg-[#17233C] hover:bg-[#E89A5B] dark:bg-[#E89A5B] dark:hover:bg-[#d4894d] text-white py-3 px-4 rounded-xl font-semibold text-sm tracking-wide transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 group"
+                className="w-full bg-[#17233C] hover:bg-[#223354] dark:bg-[#E89A5B] dark:hover:bg-[#d4894d] text-white dark:text-[#0B132B] py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 group mt-2"
               >
                 {isLoading ? (
                   <>
-                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-4 w-4 text-white dark:text-[#0B132B]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>{t('login.submitting')}</span>
+                    <span>{t('login.submitting', 'Signing in...')}</span>
                   </>
                 ) : (
                   <>
-                    <span>{t('login.submitBtn')}</span>
-                    <span className={`transition-transform duration-200 ${isRtl ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`}>
+                    <span>{t('login.submitBtn', 'Sign In')}</span>
+                    <span className={`transition-transform duration-300 ${isRtl ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`}>
                       {isRtl ? '←' : '→'}
                     </span>
                   </>
@@ -356,13 +309,13 @@ const Login = () => {
               </button>
             </form>
 
-            <div className="mt-6 text-center text-xs text-[#7B8190] dark:text-gray-400">
-              {t('login.noAccountPrompt')}{' '}
+            <div className="mt-6 text-center text-xs text-[#7B8190] dark:text-slate-400 font-light">
+              {t('login.noAccountPrompt', "Don't have an account?")}{' '}
               <Link
                 to="/register"
                 className="text-[#17233C] dark:text-[#E89A5B] font-bold hover:underline transition-colors"
               >
-                {t('login.registerAction')}
+                {t('login.registerAction', 'Create an account')}
               </Link>
             </div>
           </div>

@@ -1,74 +1,100 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import wishlistService from '../services/wishlistService';
 import toast from 'react-hot-toast';
 
-export const WishlistContext = createContext();
+const WishlistContext = createContext();
 
 export const WishlistProvider = ({ children }) => {
-  const [wishlistItems, setWishlistItems] = useState(() => {
-    try {
-      const saved = localStorage.getItem('wishlist_items');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
+  const { i18n } = useTranslation();
+  const isRtl = (i18n.language || 'ar').startsWith('ar');
+  const navigate = useNavigate();
+
+  const [wishlistIds, setWishlistIds] = useState([]);
+
+  const checkAuth = () => {
+    return Boolean(localStorage.getItem('token') || localStorage.getItem('admin_token'));
+  };
+
+  const fetchWishlist = useCallback(async () => {
+    if (!checkAuth()) {
+      setWishlistIds([]);
+      return;
     }
-  });
+
+    try {
+      const res = await wishlistService.getWishlist();
+      let rawList = [];
+      if (res && res.products) {
+        rawList = res.products;
+      } else if (res && res.data) {
+        rawList = res.data;
+      } else if (Array.isArray(res)) {
+        rawList = res;
+      }
+
+      const ids = rawList.map(p => String(p._id || p.id || p));
+      setWishlistIds(ids);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        setWishlistIds([]);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('wishlist_items', JSON.stringify(wishlistItems));
-  }, [wishlistItems]);
+    fetchWishlist();
+  }, [fetchWishlist]);
 
-  const isInWishlist = (productId) => {
-    return wishlistItems.some((item) => (item._id || item.id) === productId);
-  };
+  const isInWishlist = useCallback((productId) => {
+    if (!productId) return false;
+    const cleanId = String(typeof productId === 'object' ? (productId._id || productId.id || productId.product) : productId);
+    return wishlistIds.some(id => String(id) === cleanId);
+  }, [wishlistIds]);
 
-  const toggleWishlist = (product) => {
-    const pId = product?._id || product?.id;
-    if (!pId) return;
-
-    toast.dismiss();
-
-    const exists = wishlistItems.some((item) => (item._id || item.id) === pId);
-    const prodName = product.name || product.title;
-
-    if (exists) {
-      setWishlistItems((prev) => prev.filter((item) => (item._id || item.id) !== pId));
-      toast.success(
-        prodName ? `${prodName} removed from wishlist` : 'Removed from wishlist',
-        { id: 'wishlist-toast' }
-      );
-    } else {
-      setWishlistItems((prev) => [...prev, product]);
-      toast.success(
-        prodName ? `${prodName} added to wishlist!` : 'Added to wishlist!',
-        { id: 'wishlist-toast' }
-      );
+  const toggleWishlist = async (productId) => {
+    if (!checkAuth()) {
+      toast.error(isRtl ? 'يرجى تسجيل الدخول أولاً لإدارة المفضلة' : 'Please sign in first to manage wishlist');
+      navigate('/login');
+      return;
     }
-  };
 
-  const removeFromWishlist = (productId) => {
-    toast.dismiss();
-    setWishlistItems((prev) => prev.filter((item) => (item._id || item.id) !== productId));
-    toast.success('Removed from wishlist', { id: 'wishlist-toast' });
-  };
+    const cleanId = String(typeof productId === 'object' ? (productId._id || productId.id || productId.product) : productId);
+    const isExist = isInWishlist(cleanId);
 
-  const clearWishlist = () => {
-    toast.dismiss();
-    setWishlistItems([]);
-    localStorage.removeItem('wishlist_items');
-    toast.success('Wishlist cleared', { id: 'wishlist-toast' });
+    // تحديث بصري فوري (Optimistic Update)
+    setWishlistIds(prev => 
+      isExist ? prev.filter(id => String(id) !== cleanId) : [...prev, cleanId]
+    );
+
+    if (isExist) {
+      toast.success(isRtl ? 'تمت إزالة المنتج من المفضلة' : 'Removed from wishlist');
+    } else {
+      toast.success(isRtl ? 'تمت إضافة المنتج إلى المفضلة' : 'Added to wishlist');
+    }
+
+    try {
+      if (isExist) {
+        await wishlistService.removeFromWishlist(cleanId);
+      } else {
+        await wishlistService.addToWishlist(cleanId);
+      }
+    } catch (err) {
+      fetchWishlist();
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        setWishlistIds([]);
+        navigate('/login');
+      } else {
+        toast.error(isRtl ? 'تعذر مزامنة المفضلة' : 'Failed to sync wishlist');
+      }
+    }
   };
 
   return (
-    <WishlistContext.Provider
-      value={{
-        wishlistItems,
-        wishlistCount: wishlistItems.length,
-        isInWishlist,
-        toggleWishlist,
-        removeFromWishlist,
-        clearWishlist,
-      }}
-    >
+    <WishlistContext.Provider value={{ wishlistIds, toggleWishlist, isInWishlist, setWishlistIds, fetchWishlist }}>
       {children}
     </WishlistContext.Provider>
   );
