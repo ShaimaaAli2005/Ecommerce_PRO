@@ -3,18 +3,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
 import PageLoader from "../components/loader/PageLoader";
 
-// ─── مكوّن بديل مؤقت لصفحات المتجر غير المنتهية ───
-const StorePlaceholder = ({ title }) => (
-  <div className="min-h-[50vh] flex flex-col items-center justify-center p-8 text-center">
-    <h2 className="text-xl font-bold text-text-main dark:text-text-inverse mb-2">
-      {title}
-    </h2>
-    <p className="text-sm text-secondary-muted">
-      هذه الصفحة قيد التطوير من قبل فريق واجهة المتجر (Store Team).
-    </p>
-  </div>
-);
-
 // ─── إطار العمل وصفحات الأدمن ───
 const AdminLayout = lazy(() => import("../layouts/AdminLayout"));
 const AdminLogin = lazy(() => import("../pages/admin/auth/AdminLogin"));
@@ -33,18 +21,19 @@ const AdminSettingsPage = lazy(() => import("../pages/admin/settings/AdminSettin
 const CategoriesPage = lazy(() => import("../pages/admin/categories/CategoriesPage"));
 
 // ─── إطار وصفحات المتجر ───
+const HomePage = lazy(() => import("../pages/store/HomePage"));
 const StoreLayout = lazy(() => import("../layouts/StoreLayout"));
-const StoreCatalog = () => <StorePlaceholder title="Store Catalog" />;
-const StoreProductView = () => <StorePlaceholder title="Store Product Details" />;
-const CartPage = () => <StorePlaceholder title="Shopping Cart" />;
-const CheckoutPage = () => <StorePlaceholder title="Checkout Page" />;
-const OrderSuccess = () => <StorePlaceholder title="Order Success" />;
-const MyOrdersPage = () => <StorePlaceholder title="My Orders" />;
-const WishlistPage = () => <StorePlaceholder title="Wishlist" />;
-const ProfilePage = () => <StorePlaceholder title="Profile Page" />;
-const Login = () => <StorePlaceholder title="Customer Login" />;
-const Register = () => <StorePlaceholder title="Customer Register" />;
-const ForgotPassword = () => <StorePlaceholder title="Forgot Password" />;
+const Login = lazy(() => import("../pages/store/auth/Login"));
+const Register = lazy(() => import("../pages/store/auth/Register"));
+const ForgotPassword = lazy(() => import("../pages/store/auth/ForgotPassword"));
+const StoreCatalog = lazy(() => import("../pages/store/products/StoreCatalog"));
+const StoreProductView = lazy(() => import("../pages/store/products/StoreProductView"));
+const WishlistPage = lazy(() => import("../pages/store/wishlist/WishlistPage"));
+const CartPage = lazy(() => import("../pages/store/cart/CartPage"));
+const CheckoutPage = lazy(() => import("../pages/store/checkout/CheckoutPage"));
+const OrderSuccess = lazy(() => import("../pages/store/orders/OrderSuccess"));
+const MyOrdersPage = lazy(() => import("../pages/store/orders/MyOrdersPage"));
+const ProfilePage = lazy(() => import("../pages/store/profile/ProfilePage"));
 const NotFound = lazy(() => import("../pages/NotFound"));
 
 export const AppRoutes = () => {
@@ -81,7 +70,7 @@ export const AppRoutes = () => {
 
         {/* مسارات المتجر */}
         <Route element={<StoreLayout />}>
-          <Route path="/" element={<StoreCatalog />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/products" element={<StoreCatalog />} />
           <Route path="/products/:id" element={<StoreProductView />} />
           <Route path="/cart" element={<CartPage />} />

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-const SettingsContext = createContext();
+const SettingsContext = createContext(null);
 
 const DEFAULT_SETTINGS = {
   defaultShippingFee: 50,
@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   enableOnlinePayment: true,
   lowStockThreshold: 5,
   maintenanceMode: false,
+  theme: "light", // light | dark
 };
 
 // أسعار صرف أساسية ثابتة وفورية بدون أي انتظار شبكة
@@ -39,9 +40,9 @@ const toArabicDigits = (val) => {
 
 export const SettingsProvider = ({ children }) => {
   const { i18n } = useTranslation();
-  const isRtl = i18n.language === "ar";
+  const isRtl = (i18n.language || "ar").startsWith("ar");
 
-  // قراءة الإعدادات الفورية المتزامنة
+  // قراءة الإعدادات الفورية المتزامنة مع التخزين المحلي
   const [settings, setSettings] = useState(() => {
     try {
       const stored = localStorage.getItem("luma_admin_settings");
@@ -50,6 +51,29 @@ export const SettingsProvider = ({ children }) => {
       return DEFAULT_SETTINGS;
     }
   });
+
+  // مزامنة وتطبيق الثيم (الدارك مود) مباشرة على مستوى المستند (html) لتفادي أي وميض
+  useEffect(() => {
+    const root = document.documentElement;
+    const currentTheme = settings.theme || "light";
+    
+    if (currentTheme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    localStorage.setItem("luma_theme", currentTheme);
+  }, [settings.theme]);
+
+  // دالة تبديل الثيم بشكل فوري ونظيف
+  const toggleTheme = useCallback(() => {
+    setSettings((prev) => {
+      const newTheme = prev.theme === "dark" ? "light" : "dark";
+      const updated = { ...prev, theme: newTheme };
+      localStorage.setItem("luma_admin_settings", JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   // قراءة أسعار الصرف بدون تأخير
   const [exchangeRates, setExchangeRates] = useState(() => {
@@ -62,12 +86,12 @@ export const SettingsProvider = ({ children }) => {
         }
       }
     } catch {
-      // fallback
+      // استخدام القيم الافتراضية عند الفشل
     }
     return BASE_RATES;
   });
 
-  // تحديث صامت في الخلفية بعد تحميل الصفحة تماماً دون تعطيل الواجهة
+  // تحديث صامت لأسعار الصرف في الخلفية بعد تحميل التطبيق بالكامل
   useEffect(() => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -85,7 +109,7 @@ export const SettingsProvider = ({ children }) => {
           }
         })
         .catch(() => {});
-    }, 1500); // تأخير ثانية ونصف لضمان فتح الصفحة فوراً
+    }, 1500);
 
     return () => {
       clearTimeout(timeoutId);
@@ -93,6 +117,7 @@ export const SettingsProvider = ({ children }) => {
     };
   }, []);
 
+  // دالة تحديث الإعدادات الشاملة
   const updateSettings = useCallback((newSettings) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
@@ -101,6 +126,7 @@ export const SettingsProvider = ({ children }) => {
     });
   }, []);
 
+  // تسمية العملة ديناميكياً حسب اللغة والوضع
   const currencyLabel = useMemo(() => {
     const code = settings.currency || "EGP";
     if (code === "SAR") return isRtl ? "ر.س" : "SAR";
@@ -108,6 +134,7 @@ export const SettingsProvider = ({ children }) => {
     return isRtl ? "ج.م" : "EGP";
   }, [settings.currency, isRtl]);
 
+  // تنسيق الأسعار مع التحويل اللحظي للعملات ودعم الأرقام العربية
   const formatPrice = useCallback(
     (amount, isStoredInBaseEGP = false) => {
       let num = Number(amount);
@@ -128,6 +155,7 @@ export const SettingsProvider = ({ children }) => {
     [settings.currency, exchangeRates, isRtl]
   );
 
+  // تنسيق الأرقام العامة
   const formatDigits = useCallback(
     (val) => {
       const num = Number(val);
@@ -138,17 +166,23 @@ export const SettingsProvider = ({ children }) => {
     [isRtl]
   );
 
+  // تجميع القيمة المزودة لمنع أي إعادة تصيير (Re-renders) غير مبررة
+  const value = useMemo(
+    () => ({
+      settings,
+      updateSettings,
+      currencyLabel,
+      exchangeRates,
+      formatPrice,
+      formatDigits,
+      theme: settings.theme || "light",
+      toggleTheme,
+    }),
+    [settings, currencyLabel, exchangeRates, formatPrice, formatDigits, toggleTheme, updateSettings]
+  );
+
   return (
-    <SettingsContext.Provider
-      value={{
-        settings,
-        updateSettings,
-        currencyLabel,
-        exchangeRates,
-        formatPrice,
-        formatDigits,
-      }}
-    >
+    <SettingsContext.Provider value={value}>
       {children}
     </SettingsContext.Provider>
   );
@@ -161,3 +195,5 @@ export const useSettings = () => {
   }
   return context;
 };
+
+export default SettingsContext;

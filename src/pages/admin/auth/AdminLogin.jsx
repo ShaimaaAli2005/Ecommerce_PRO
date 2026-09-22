@@ -15,7 +15,6 @@ export const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
-  // حالة محلية للوضع الليلي داخل صفحة الدخول إذا لم تكن مرتبطة ببروفيدر عام
   const [isDarkMode, setIsDarkMode] = useState(
     document.documentElement.classList.contains("dark")
   );
@@ -66,7 +65,10 @@ export const AdminLogin = () => {
         return;
       }
 
-      localStorage.setItem("token", token);
+      // ─── التعديل هنا: تخزين التوكن في admin_token و token لضمان توافقه مع الـ axiosInstance الجديد ───
+      localStorage.setItem("admin_token", token);
+      localStorage.setItem("token", token); 
+      
       if (user) {
         localStorage.setItem("user", JSON.stringify(user));
       }

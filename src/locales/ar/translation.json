@@ -1,9 +1,7 @@
 {
-
-  "app_name": "متجر كودا",
-
   "app_name": "متجر لوما (LUMA)",
-
+  "brand": "LUMA",
+  "switchLang": "English",
   "common": {
     "loading": "جاري التحميل...",
     "confirm": "تأكيد",
@@ -26,7 +24,6 @@
     "guest_client": "عميل زائر",
     "close": "إغلاق",
     "copied": "تم النسخ بنجاح!"
-
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -36,17 +33,147 @@
     "password": "كلمة المرور",
     "otp_sent": "تم إرسال رمز التحقق إلى بريدك الإلكتروني"
   },
-  "status": {
-    "pending": "قيد الانتظار",
-    "confirmed": "تم التأكيد",
-    "processing": "جاري التجهيز",
-    "shipped": "تم الشحن",
-    "delivered": "تم التسليم",
-    "cancelled": "ملغي",
-    "returned": "مسترجع"
-
+  "register": {
+    "title": "إنشاء حساب جديد",
+    "verifyTitle": "تأكيد بريدك الإلكتروني",
+    "subtitle": "املأ بياناتك للانضمام إلى متجر لوما الخاص.",
+    "verifySubtitle": "أدخل الرمز المكون من 6 أرقام المرسل إلى بريدك الإلكتروني.",
+    "usernameLabel": "الاسم الكامل",
+    "emailLabel": "البريد الإلكتروني",
+    "phoneLabel": "رقم الهاتف",
+    "passwordLabel": "كلمة المرور الآمنة",
+    "passwordHint": "8+ أحرف، حروف كبيرة وصغيرة وأرقام.",
+    "otpLabel": "رمز التحقق (OTP)",
+    "continueBtn": "متابعة وإرسال الرمز",
+    "sendingOtp": "جاري إرسال الرمز...",
+    "verifyBtn": "تأكيد وإنشاء الحساب",
+    "verifying": "جاري التحقق...",
+    "backToForm": "← العودة لتعديل البيانات",
+    "hasAccount": "لديك حساب بالفعل؟",
+    "loginAction": "تسجيل الدخول",
+    "showcase": {
+      "tagline": "عضوية حصرية",
+      "quote": "ابدأ رحلتك نحو الفخامة والتميز الذي لا يُضاهى.",
+      "badgeTitle": "تحقق آمن",
+      "badgeDesc": "تحقق فوري عبر البريد الإلكتروني للحسابات النخبوية."
+    },
+    "errors": {
+      "allFieldsRequired": "يرجى ملء كافة الحقول المطلوبة.",
+      "passwordWeak": "كلمة المرور ضعيفة. يجب أن تكون 8 أحرف على الأقل وتحتوي على حروف كبيرة وصغيرة وأرقام.",
+      "otpRequired": "يرجى إدخال رمز التحقق الصحيح.",
+      "invalidOtp": "رمز التحقق غير صحيح أو منتهي الصلاحية.",
+      "generalError": "حدث خطأ ما، يرجى المحاولة مجدداً."
+    },
+    "success": {
+      "otpSent": "تم إرسال رمز التحقق إلى بريدك الإلكتروني بنجاح!",
+      "accountCreated": "تم إنشاء الحساب بنجاح! يرجى تسجيل الدخول."
+    }
+  },
+  "login": {
+    "title": "أهلاً بك مجدداً",
+    "subtitle": "قم بتسجيل الدخول للوصول إلى لوحة التحكم الفاخرة وتتبع طلباتك الاستثنائية.",
+    "emailLabel": "البريد الإلكتروني",
+    "emailPlaceholder": "name@example.com",
+    "passwordLabel": "كلمة المرور الآمنة",
+    "passwordPlaceholder": "••••••••",
+    "forgotPassword": "هل نسيت كلمة المرور؟",
+    "rememberMe": "تذكر هذا الجهاز",
+    "submitBtn": "تسجيل الدخول",
+    "submitting": "جاري التحقق من الهوية...",
+    "googleBtn": "المتابعة باستخدام Google",
+    "noAccountPrompt": "عميل جديد في لوما؟",
+    "registerAction": "إنشاء حساب فاخر",
+    "showcase": {
+      "tagline": "الفخامة المختارة بعناية",
+      "quote": "الأناقة هي الجمال الوحيد الذي لا يذبل أبداً.",
+      "orDivider": "أو المتابعة الآمنة",
+      "badgeTitle": "امتيازات الأعضاء كبار الشخصيات",
+      "badgeDesc": "شحن سريع مجاني لجميع أنحاء العالم مع خدمة الكونسيرج."
+    },
+    "errors": {
+      "emailRequired": "البريد الإلكتروني مطلوب.",
+      "emailInvalid": "يرجى إدخال بريد إلكتروني صالح.",
+      "passwordRequired": "كلمة المرور مطلوبة.",
+      "passwordMin": "يجب ألا تقل كلمة المرور عن 6 أحرف.",
+      "passwordWeak": "كلمة المرور ضعيفة. يجب أن تكون 8 أحرف على الأقل وتحتوي على حروف وأرقام."
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "confirmed": "تم التأكيد",
+      "processing": "جاري التجهيز",
+      "shipped": "تم الشحن",
+      "delivered": "تم التسليم",
+      "cancelled": "ملغي",
+      "returned": "مسترجع"
+    }
+  },
+  "forgot": {
+    "title": "استعادة كلمة المرور",
+    "subtitle": "أدخل بريدك الإلكتروني لتلقي رمز التحقق الآمن.",
+    "resetTitle": "تعيين كلمة مرور جديدة",
+    "resetSubtitle": "أدخل الرمز المكون من 6 أرقام المرسل لبريدك وكلمة المرور الجديدة.",
+    "emailLabel": "البريد الإلكتروني",
+    "emailPlaceholder": "name@example.com",
+    "otpLabel": "رمز التحقق (OTP)",
+    "passwordLabel": "كلمة المرور الجديدة الآمنة",
+    "confirmPasswordLabel": "تكيد كلمة المرور الجديدة",
+    "passwordPlaceholder": "••••••••",
+    "submitBtn": "إرسال رمز الاستعادة",
+    "resetBtn": "تحديث كلمة المرور",
+    "submitting": "جاري المعالجة...",
+    "backAction": "← تغيير البريد الإلكتروني",
+    "rememberPrompt": "تذكرت كلمة المرور؟",
+    "signInAction": "تسجيل الدخول",
+    "showcase": {
+      "tagline": "الأمان والاستعادة",
+      "quote": "استعد الوصول إلى لوحة تحكم الخاصة بك بكل أمان.",
+      "badgeTitle": "حماية مشفرة",
+      "badgeDesc": "بروتوكولات تحقق متقدمة لضمان أمان بياناتك بالكامل."
+    },
+    "errors": {
+      "invalidEmail": "يرجى إدخال بريد إلكتروني صالح.",
+      "invalidOtp": "يرجى إدخال رمز تحقق صالح من 6 أرقام.",
+      "weakPassword": "كلمة المرور ضعيفة. يجب أن تكون 8 أحرف على الأقل وتحتوي على حروف وأرقام.",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين.",
+      "sendFailed": "تعذر إرسال رمز الاستعادة. يرجى المحاولة مرة أخرى.",
+      "resetFailed": "فشل تحديث كلمة المرور. تأكد من صحة رمز التحقق."
+    },
+    "success": {
+      "otpSent": "تم إرسال رمز الاستعادة إلى بريدك الإلكتروني بنجاح.",
+      "passwordUpdated": "تم تحديث كلمة المرور بنجاح!"
+    }
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "collections": "منوعات",
+    "newIn": "وصل حديثاً",
+    "shop": "تسوق الكل",
+    "wishlist": "المفضلة",
+    "bag": "السلة",
+    "orders": "طلباتي",
+    "account": "الحساب",
+    "login": "تسجيل الدخول",
+    "register": "حساب جديد"
   },
   "admin": {
+    "portal_title": "لوحة إدارة المتجر",
+    "dashboard": "لوحة الإحصائيات",
+    "products": "إدارة المنتجات",
+    "orders": "إدارة الطلبات",
+    "carts": "السلات النشطة",
+    "wishlist": "قوائم الرغبات",
+    "users": "المستخدمين والأدوار",
+    "settings": "إعدادات المتجر",
+    "role_admin": "مدير النظام",
+    "recent_orders": "أحدث الطلبات",
+    "order_id": "رقم الطلب",
+    "customer": "العميل",
+    "date": "التاريخ",
+    "total": "الإجمالي",
+    "status": "الحالة",
+    "actions": "الإجراءات",
+    "view_details": "عرض التفاصيل",
+    "no_orders": "لا توجد طلبات حديثة مسجلة حالياً.",
     "admin_login": {
       "brand_badge": "مشرف",
       "curated_commerce_tag": "تصميم راقٍ ومدروس",
@@ -62,15 +189,6 @@
       "authenticating": "جاري تسجيل الدخول...",
       "submit_button": "دخول لوحة التحكم"
     },
-    "portal_title": "لوحة إدارة المتجر",
-    "dashboard": "لوحة الإحصائيات",
-    "products": "إدارة المنتجات",
-    "orders": "إدارة الطلبات",
-    "carts": "السلات النشطة",
-    "wishlist": "قوائم الرغبات",
-    "users": "المستخدمين والأدوار",
-    "settings": "إعدادات المتجر",
-    "role_admin": "مدير النظام",
     "currency": {
       "egp": "ج.م",
       "sar": "ر.س",
@@ -90,15 +208,6 @@
       "average_order_value": "متوسط قيمة الطلب الواحد (AOV)",
       "optimal_return": "عائد ممتاز"
     },
-    "recent_orders": "أحدث الطلبات",
-    "order_id": "رقم الطلب",
-    "customer": "العميل",
-    "date": "التاريخ",
-    "total": "الإجمالي",
-    "status": "الحالة",
-    "actions": "الإجراءات",
-    "view_details": "عرض التفاصيل",
-    "no_orders": "لا توجد طلبات حديثة مسجلة حالياً.",
     "status_labels": {
       "pending": "قيد الانتظار",
       "processing": "جاري التجهيز",
@@ -346,6 +455,9 @@
       "add_new": "إضافة منتج جديد",
       "search_placeholder": "بحث بالاسم أو الفئة...",
       "filter_category": "كل الفئات",
+      "delete_confirm_title": "تأكيد حذف المنتج",
+      "delete_confirm_desc": "هل أنت متأكد من رغبتك في حذف هذا المنتج؟ لا يمكن التراجع عن هذا الإجراء.",
+      "no_products": "لم يتم العثور على أي منتجات مطابقة.",
       "table": {
         "product": "المنتج",
         "category": "الفئة",
@@ -359,9 +471,6 @@
         "low_stock": "منخفض",
         "out_of_stock": "نفذ من المخزون"
       },
-      "delete_confirm_title": "تأكيد حذف المنتج",
-      "delete_confirm_desc": "هل أنت متأكد من رغبتك في حذف هذا المنتج؟ لا يمكن التراجع عن هذا الإجراء.",
-      "no_products": "لم يتم العثور على أي منتجات مطابقة.",
       "toast": {
         "delete_success": "تم حذف المنتج بنجاح",
         "delete_error": "فشل حذف المنتج، يرجى المحاولة لاحقاً"
@@ -475,6 +584,204 @@
     "delete_modal_desc": "هل أنت متأكد من رغبتك في حذف قسم \"{{name}}\"؟ لا يمكن التراجع عن هذا الإجراء.",
     "confirm_delete": "تأكيد الحذف النهائي"
     }
-
+  },
+    "store": {
+    "announcement": "شحن سريع ومجاني للطلبات فوق ٢٠٠ دولار | استخدم الكود: LUMA2026",
+    "search_placeholder": "ابحث عن منتجات الفخامة...",
+    "brand_subtitle": "تسوق الفخامة المتقنة",
+    "nav": {
+      "home": "الرئيسية",
+      "catalog": "الكتالوج",
+      "electronics": "الإلكترونيات",
+      "featured": "المميزة",
+      "orders": "طلباتي",
+      "wishlist": "المفضلة",
+      "profile": "حسابي",
+      "login": "تسجيل الدخول",
+      "logout": "خروج"
+    },
+    "home": {
+      "badge": "أحدث إصدارات الفخامة لعام 2026",
+      "hero_title": "اكتشف عالم الأناقة وتكنولوجيا المستقبل",
+      "hero_subtitle": "تشكيلة مختارة بعناية من أرقى المنتجات العالمية، مصممة خصيصاً لتلبي تطلعاتك وتمنحك تجربة تسوق لا تُعوض.",
+      "explore_btn": "استعرض الكتالوج الكامل",
+      "orders_btn": "متابعة طلباتي",
+      "feature_shipping": "شحن سريع ومجاني",
+      "feature_shipping_desc": "للطلبات التي تتجاوز 200 دولار",
+      "feature_payment": "دفع آمن 100%",
+      "feature_payment_desc": "حماية كاملة لبياناتك الشخصية",
+      "feature_returns": "سياسة إرجاع مرنة",
+      "feature_returns_desc": "إرجاع سهل خلال 14 يوماً",
+      "feature_quality": "منتجات أصلية ومضمونة",
+      "feature_quality_desc": "جودة عالمية معتمدة وفخمة",
+      "featured_title": "المنتجات المميزة",
+      "featured_subtitle": "مختاراتنا الأكثر طلباً لهذا الأسبوع",
+      "view_all": "عرض الكل",
+      "no_products": "لا توجد منتجات مميزة لعرضها حالياً.",
+      "add_to_cart": "إضافة للسلة"
+    },
+    "cart_page": {
+      "title": "سلة المشتريات",
+      "items_count": "{{count}} عناصر في سلة التسوق",
+      "clear_cart": "تفريغ السلة",
+      "empty_title": "سلة المشتريات فارغة",
+      "empty_desc": "استكشف كتالوج المنتجات الفاخرة وأضف ما يعجبك إلى سلتك الآن.",
+      "explore_catalog": "تصفح الكتالوج",
+      "order_summary": "ملخص الطلب",
+      "subtotal": "المجموع الفرعي",
+      "discount": "قيمة الخصم",
+      "total": "الإجمالي النهائي",
+      "checkout_btn": "إتمام الشراء والدفع"
+    },
+    "cart_item": {
+      "default_name": "منتج",
+      "remove_tooltip": "حذف المنتج"
+    },
+    "coupon_form": {
+      "label": "كوبون الخصم (أكواد تجريبية: SAVE10, SAVE20, SAVE50, SAVE80, OFF50)",
+      "active_label": "الكوبون المفعل:",
+      "placeholder": "أدخل كود الكوبون...",
+      "apply_btn": "تطبيق",
+      "loading_btn": "جاري..."
+    },
+    "cart_toast": {
+      "added_success": "تمت إضافة المنتج إلى السلة بنجاح",
+      "add_error": "تعذر إضافة المنتج للسلة",
+      "update_error": "تعذر تحديث الكمية",
+      "remove_success": "تمت إزالة المنتج من السلة",
+      "remove_error": "تعذر إزالة المنتج",
+      "coupon_success": "تم تطبيق الكوبون بنجاح!",
+      "coupon_error": "كوبون غير صالح أو سلة فارغة",
+      "coupon_removed": "تم إزالة الكوبون",
+      "coupon_remove_error": "تعذر إزالة الكوبون",
+      "clear_success": "تم تفريغ السلة بنجاح",
+      "clear_error": "تعذر تفريغ السلة"
+    },
+    "product_view": {
+      "back_to_catalog": "العودة للكاتالوج",
+      "exclusive_tag": "LUMA Exclusive",
+      "add_to_bag": "أضف إلى السلة",
+      "added_success": "تمت إضافة {{title}} للسلة",
+      "fetch_error": "تعذر تحميل تفاصيل المنتج",
+      "fast_shipping": "شحن سريع",
+      "authentic": "ضمان الاصالة",
+      "easy_return": "إرجاع سهل",
+      "default_desc": "منتج فاخر مصمم بأعلى معايير الجودة والأناقة."
+    },
+    "wishlist": {
+      "title": "المحفوظات",
+      "items_count": "عنصر محفوظ",
+      "sort_default": "الترتيب: الافتراضي",
+      "sort_price_low": "السعر: من الأقل للأعلى",
+      "sort_price_high": "السعر: من الأعلى للأقل",
+      "clear_all": "تفريغ الكل",
+      "empty_title": "قائمة المحفوظات فارغة",
+      "empty_desc": "استكشف المتجر واحفظ قطعك الفاخرة هنا.",
+      "explore_shop": "استكشف المتجر",
+      "remove": "إزالة",
+      "remove_success": "تمت إزالة {{name}} من المحفوظات",
+      "clear_success": "تم تفريغ المحفوظات بنجاح.",
+      "default_product_name": "منتج"
+    },
+    "my_orders": {
+      "title": "طلباتي",
+      "subtitle": "تتبع وإدارة طلبات المتجر الحالية والسابقة.",
+      "empty_title": "لا توجد طلبات",
+      "empty_desc": "لم تقم بإنشاء أي طلبات حتى الآن. استعرض الكتالوج وابدأ التسوق.",
+      "date": "التاريخ:",
+      "items_count": "منتجات",
+      "view_details": "عرض التفاصيل"
+    },
+    "order_status": {
+      "pending": "قيد الانتظار",
+      "confirmed": "تم التأكيد",
+      "processing": "قيد التجهيز",
+      "shipped": "تم الشحن",
+      "delivered": "تم التوصيل",
+      "cancelled": "ملغي"
+    },
+    "order_status_filter": {
+      "all": "الكل",
+      "pending": "قيد الانتظار",
+      "confirmed": "المؤكدة",
+      "shipped": "المشحونة",
+      "delivered": "الموصلة",
+      "cancelled": "الملغية"
+    },
+    "cart": {
+      "title": "سلة المشتريات",
+      "empty": "سلة المشتريات فارغة",
+      "explore": "تصفح الكتالوج",
+      "subtotal": "المجموع الفرعي",
+      "view_cart": "عرض السلة",
+      "checkout": "إتمام الشراء",
+      "free_shipping_unlocked": "لقد حصلت على شحن سريع ومجاني!",
+      "free_shipping_remaining": "أضف بـ {amount} أخرى للحصول على شحن مجاني"
+    },
+  "catalog": {
+      "title": "كتالوج المنتجات",
+      "subtitle": "استكشف أحدث التشكيلات والمنتجات المتوفرة لدينا.",
+      "filters": "التصفية والفلترة",
+      "sort_by": "ترتيب حسب",
+      "price_range": "نطاق السعر",
+      "categories": "الفئات",
+      "all": "الكل",
+      "search_results": "نتائج البحث عن: \"{query}\"",
+      "no_products": "لم يتم العثور على منتجات تطابق بحثك.",
+      "clear_filters": "إعادة تعيين الفلاتر",
+      "add_to_cart": "إضافة للسلة",
+      "view_details": "التفاصيل",
+      "search_placeholder": "ابحث باسم المنتج، الوصف، أو المواصفات...",
+      "sort_featured": "المميزة",
+      "sort_price_low": "السعر: من الأقل للأعلى",
+      "sort_price_high": "السعر: من الأعلى للأقل",
+      "sort_rating": "الأعلى تقييماً",
+      "sort_newest": "الأحدث وصولاً",
+      "filters_title": "خيارات التصفية",
+      "max_price": "الحد الأقصى للسعر:",
+      "in_stock_only": "المتوفر في المخزن فقط",
+      "on_sale_only": "العروض والتخفيضات",
+      "min_rating": "التقييم الأدنى:",
+      "compare": "مقارنة",
+      "compare_title": "مقارنة المنتجات",
+      "close_compare": "إغلاق المقارنة",
+      "max_compare_reached": "يمكنك مقارنة 3 منتجات كحد أقصى.",
+      "hub_tag": "مجموعة LUMA الحصرية",
+      "wishlist_btn": "المفضلة",
+      "compare_btn": "مقارنة",
+      "default_desc": "تحفة فنية مصممة خصيصاً لأصحاب الذوق الرفيع والأداء الفائق.",
+      "added_to_cart_msg": "تمت إضافة \"{{title}}\" إلى السلة!",
+      "fetch_error": "فشل في جلب المنتجات من قاعدة البيانات",
+      "adding": "جاري الإضافة...",
+        "badges": {
+        "limited": "إصدار محدود",
+        "trending": "الأكثر طلباً",
+        "new": "جديد"
+      }
+    },
+    "categories": {
+      "electronics": "الإلكترونيات",
+      "accessories": "الإكسسوارات الفاخرة",
+      "fashion": "الأزياء والموضة",
+      "watches": "الساعات الفاخرة",
+      "sports": "أدوات رياضية",
+      "computers": "الحواسيب والتقنية",
+      "smartphones": "الهواتف الذكية",
+      "home": "المنزل والديكور",
+      "general": "عام"
+    },
+    "footer": {
+      "desc": "إعادة صياغة التجارة الرقمية والواقعية بمعايير الفخامة المطلقة، التصميم المينيمالي، والهندسة الخالية من الأخطاء.",
+      "quick_links": "روابط سريعة",
+      "customer_care": "خدمة العملاء",
+      "newsletter": "النشرة البريدية",
+      "newsletter_desc": "اشترك لتلقي التحديثات والوصول إلى الإصدارات الحصرية.",
+      "email_placeholder": "أدخل بريدك الإلكتروني",
+      "join": "انضمام",
+      "shipping": "الشحن والتوصيل",
+      "returns": "الإرجاع والاستبدال",
+      "support": "الدعم العالمي",
+      "rights": "جميع الحقوق محفوظة لمنصة LUMA للفخامة."
+    }
   }
 }

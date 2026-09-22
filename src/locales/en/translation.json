@@ -1,8 +1,7 @@
 {
-
-
   "app_name": "LUMA Store",
-
+  "brand": "LUMA",
+  "switchLang": "العربية",
   "common": {
     "loading": "Loading...",
     "confirm": "Confirm",
@@ -14,8 +13,6 @@
     "actions": "Actions",
     "back_to_home": "Back to Home",
     "status": "Status",
-
-
     "retry": "Retry",
     "price": "Price",
     "quantity": "Quantity",
@@ -27,7 +24,6 @@
     "guest_client": "Guest Client",
     "close": "Close",
     "copied": "Copied successfully!"
-
   },
   "auth": {
     "login": "Login",
@@ -45,9 +41,144 @@
     "delivered": "Delivered",
     "cancelled": "Cancelled",
     "returned": "Returned"
+  },
 
+  "register": {
+    "title": "Create Account",
+    "verifyTitle": "Verify Your Email",
+    "subtitle": "Fill in your details to join the LUMA private club.",
+    "verifySubtitle": "Enter the 6-digit code sent to your email address.",
+    "usernameLabel": "Full Name",
+    "emailLabel": "Email Address",
+    "phoneLabel": "Phone Number",
+    "passwordLabel": "Secure Password",
+    "passwordHint": "8+ chars, upper, lower case & number.",
+    "otpLabel": "Verification Code (OTP)",
+    "continueBtn": "Continue & Send OTP",
+    "sendingOtp": "Sending OTP...",
+    "verifyBtn": "Verify & Create Account",
+    "verifying": "Verifying...",
+    "backToForm": "← Back to edit details",
+    "hasAccount": "Already have an account?",
+    "loginAction": "Sign In",
+    "showcase": {
+      "tagline": "EXCLUSIVE MEMBERSHIP",
+      "quote": "Begin your journey into unmatched luxury and curation.",
+      "badgeTitle": "Secure Verification",
+      "badgeDesc": "Instant email OTP verification for elite accounts."
+    },
+    "errors": {
+      "allFieldsRequired": "Please fill in all required fields.",
+      "passwordWeak": "Password is weak. Must be 8+ chars with upper, lower case & numbers.",
+      "otpRequired": "Please enter a valid verification code.",
+      "invalidOtp": "Invalid or expired verification code.",
+      "generalError": "Something went wrong, please try again."
+    },
+    "success": {
+      "otpSent": "Verification code sent to your email successfully!",
+      "accountCreated": "Account created successfully! Please sign in."
+    }
+  },
+  "login": {
+    "title": "Welcome Back",
+    "subtitle": "Access your curated luxury dashboard and personalized orders.",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "name@example.com",
+    "passwordLabel": "Secure Password",
+    "passwordPlaceholder": "••••••••",
+    "forgotPassword": "Forgot Password?",
+    "rememberMe": "Remember this device",
+    "submitBtn": "Sign In",
+    "submitting": "Authenticating...",
+    "googleBtn": "Continue with Google",
+    "noAccountPrompt": "New to LUMA?",
+    "registerAction": "Create an Account",
+    "showcase": {
+      "tagline": "CURATED EXCELLENCE",
+      "quote": "Elegance is the only beauty that never fades.",
+      "orDivider": "OR SECURE ACCESS",
+      "badgeTitle": "Global VIP Privileges",
+      "badgeDesc": "Complimentary worldwide express shipping & concierge."
+    },
+    "errors": {
+    "emailRequired": "Email address is required.",
+    "emailInvalid": "Please enter a valid email format.",
+    "passwordRequired": "Password is required.",
+    "passwordMin": "Password must be at least 6 characters.",
+    "passwordWeak": "Password must be at least 8 characters with upper, lower case and numbers."
+    },
+    "success": {
+      "loginSuccess": "Login successful!",
+      "googleSuccess": "Connected via Google successfully"
+    }
+  },
+  "forgot": {
+    "title": "Forgot Password",
+    "subtitle": "Enter your email address to receive a secure recovery code.",
+    "resetTitle": "Reset Password",
+    "resetSubtitle": "Enter the 6-digit code sent to your email and your new password.",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "name@example.com",
+    "otpLabel": "Verification Code (OTP)",
+    "passwordLabel": "New Secure Password",
+    "confirmPasswordLabel": "Confirm New Password",
+    "passwordPlaceholder": "••••••••",
+    "submitBtn": "Send Recovery Code",
+    "resetBtn": "Update Password",
+    "submitting": "Processing...",
+    "backAction": "← Change email address",
+    "rememberPrompt": "Remembered your password?",
+    "signInAction": "Sign In",
+    "showcase": {
+      "tagline": "SECURITY & RECOVERY",
+      "quote": "Securely restore access to your private curated dashboard.",
+      "badgeTitle": "Encrypted Protection",
+      "badgeDesc": "Advanced verification protocols for complete data safety."
+    },
+    "errors": {
+      "invalidEmail": "Please enter a valid email address.",
+      "invalidOtp": "Please enter a valid 6-digit OTP code.",
+      "weakPassword": "Password must be at least 8 characters with upper, lower case & numbers.",
+      "passwordMismatch": "Passwords do not match.",
+      "sendFailed": "Failed to send recovery code. Please try again.",
+      "resetFailed": "Failed to reset password. Check your OTP code."
+    },
+    "success": {
+      "otpSent": "Recovery code sent to your email successfully.",
+      "passwordUpdated": "Password updated successfully!"
+    }
+  },
+  "nav": {
+    "home": "Discover",
+    "collections": "Collections",
+    "newIn": "New In",
+    "shop": "Shop All",
+    "wishlist": "Wishlist",
+    "bag": "Bag",
+    "orders": "Orders",
+    "account": "Account",
+    "login": "Sign In",
+    "register": "Register"
   },
   "admin": {
+    "portal_title": "Admin Portal",
+    "dashboard": "Dashboard",
+    "products": "Products",
+    "orders": "Orders",
+    "carts": "Active Carts",
+    "wishlist": "Wishlists",
+    "users": "Users & Roles",
+    "settings": "Store Settings",
+    "role_admin": "System Administrator",
+    "recent_orders": "Recent Orders",
+    "order_id": "Order ID",
+    "customer": "Customer",
+    "date": "Date",
+    "total": "Total",
+    "status": "Status",
+    "actions": "Actions",
+    "view_details": "View Details",
+    "no_orders": "No recent orders recorded.",
     "admin_login": {
       "brand_badge": "Admin",
       "curated_commerce_tag": "Curated Commerce",
@@ -63,15 +194,6 @@
       "authenticating": "Authenticating...",
       "submit_button": "Sign in to Dashboard"
     },
-    "portal_title": "Admin Portal",
-    "dashboard": "Dashboard",
-    "products": "Products",
-    "orders": "Orders",
-    "carts": "Active Carts",
-    "wishlist": "Wishlists",
-    "users": "Users & Roles",
-    "settings": "Store Settings",
-    "role_admin": "System Administrator",
     "currency": {
       "egp": "EGP",
       "sar": "SAR",
@@ -91,15 +213,6 @@
       "average_order_value": "Average Order Value",
       "optimal_return": "Optimal"
     },
-    "recent_orders": "Recent Orders",
-    "order_id": "Order ID",
-    "customer": "Customer",
-    "date": "Date",
-    "total": "Total",
-    "status": "Status",
-    "actions": "Actions",
-    "view_details": "View Details",
-    "no_orders": "No recent orders recorded.",
     "status_labels": {
       "pending": "Pending",
       "processing": "Processing",
@@ -347,6 +460,9 @@
       "add_new": "Add Product",
       "search_placeholder": "Search by title or category...",
       "filter_category": "All Categories",
+      "delete_confirm_title": "Confirm Product Deletion",
+      "delete_confirm_desc": "Are you sure you want to delete this product? This action cannot be undone.",
+      "no_products": "No products found matching your criteria.",
       "table": {
         "product": "Product",
         "category": "Category",
@@ -360,9 +476,6 @@
         "low_stock": "Low Stock",
         "out_of_stock": "Out of Stock"
       },
-      "delete_confirm_title": "Confirm Product Deletion",
-      "delete_confirm_desc": "Are you sure you want to delete this product? This action cannot be undone.",
-      "no_products": "No products found matching your criteria.",
       "toast": {
         "delete_success": "Product deleted successfully",
         "delete_error": "Failed to delete product, please try again"
@@ -476,5 +589,140 @@
       "confirm_delete": "Confirm Delete"
     }
 
+  },
+  "store": {
+    "announcement": "Free Express Shipping Worldwide on Orders Over $200 | Use Code: LUMA2026",
+    "search_placeholder": "Search luxury items...",
+    "brand_subtitle": "Curated Luxury",
+    "nav": {
+      "home": "Home",
+      "catalog": "Catalog",
+      "electronics": "Electronics",
+      "featured": "Featured",
+      "orders": "My Orders",
+      "wishlist": "Wishlist",
+      "profile": "Profile",
+      "login": "Login",
+      "logout": "Logout"
+    },
+    "home": {
+      "badge": "Latest Luxury Releases 2026",
+      "hero_title": "Discover the World of Elegance & Future Tech",
+      "hero_subtitle": "A carefully curated selection of the finest global products designed to meet your aspirations.",
+      "explore_btn": "Explore Full Catalog",
+      "orders_btn": "Track My Orders",
+      "feature_shipping": "Free Express Shipping",
+      "feature_shipping_desc": "On orders over $200",
+      "feature_payment": "100% Secure Payment",
+      "feature_payment_desc": "Complete protection for your data",
+      "feature_returns": "Flexible Return Policy",
+      "feature_returns_desc": "Easy returns within 14 days",
+      "feature_quality": "Original & Guaranteed",
+      "feature_quality_desc": "Certified global luxury quality",
+      "featured_title": "Featured Products",
+      "featured_subtitle": "Our most sought-after picks this week",
+      "view_all": "View All",
+      "no_products": "No featured products available at the moment.",
+      "add_to_cart": "Add to Cart"
+    },
+    "my_orders": {
+      "title": "My Orders",
+      "subtitle": "Track and manage your past and current store orders.",
+      "empty_title": "No orders found",
+      "empty_desc": "You have not placed any orders yet. Explore our catalog and start shopping.",
+      "date": "Date:",
+      "items_count": "items",
+      "view_details": "View Details"
+    },
+    "order_status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "processing": "Processing",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "order_status_filter": {
+      "all": "All",
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "cart": {
+      "title": "Shopping Cart",
+      "empty": "Your cart is empty",
+      "explore": "Explore Catalog",
+      "subtotal": "Subtotal",
+      "view_cart": "View Cart",
+      "checkout": "Checkout",
+      "free_shipping_unlocked": "You qualify for Free Express Shipping!",
+      "free_shipping_remaining": "Add ${amount} more for Free Worldwide Shipping"
+    },
+    "catalog": {
+      "title": "Product Catalog",
+      "subtitle": "Explore our latest curated collections and available items.",
+      "filters": "Filters",
+      "sort_by": "Sort By",
+      "price_range": "Price Range",
+      "categories": "Categories",
+      "all": "All",
+      "search_results": "Search results for: \"{query}\"",
+      "no_products": "No products found matching your search.",
+      "clear_filters": "Clear Filters",
+      "add_to_cart": "Add to Cart",
+      "view_details": "View Details",
+      "search_placeholder": "Search products...",
+      "sort_featured": "Featured",
+      "sort_price_low": "Price: Low to High",
+      "sort_price_high": "Price: High to Low",
+      "sort_rating": "Highest Rated",
+      "sort_newest": "Newest",
+      "filters_title": "Filter Options",
+      "max_price": "Max Price:",
+      "in_stock_only": "In Stock Only",
+      "min_rating": "Minimum Rating",
+      "compare": "Compare",
+      "compare_title": "Product Comparison",
+      "close_compare": "Close Comparison",
+      "max_compare_reached": "You can compare up to 3 products max.",
+      "hub_tag": "LUMA Curated Hub",
+      "wishlist_btn": "Wishlist",
+      "compare_btn": "Compare",
+      "default_desc": "Curated masterpiece designed for ultimate performance and prestige.",
+      "added_to_cart_msg": "Added \"{{title}}\" to cart successfully!",
+      "on_sale_only": "On Sale",
+      "fetch_error": "Failed to fetch products from database",
+      "badges": {
+        "limited": "Limited",
+        "trending": "Trending",
+        "new": "New"
+      }
+    },
+    "categories": {
+      "electronics": "Electronics",
+      "accessories": "Accessories",
+      "fashion": "Fashion",
+      "watches": "Watches",
+      "sports": "Sports",
+      "computers": "Computers & Tech",
+      "smartphones": "Smartphones",
+      "home": "Home & Decor",
+      "general": "General"
+    },
+    "footer": {
+      "desc": "Redefining curated digital and physical commerce with uncompromising luxury, minimalist aesthetics, and flawless engineering.",
+      "quick_links": "Quick Links",
+      "customer_care": "Customer Care",
+      "newsletter": "Newsletter",
+     "newsletter_desc": "Subscribe to receive updates and access to exclusive releases.",
+      "email_placeholder": "Enter your email",
+      "join": "Join",
+      "shipping": "Shipping & Delivery",
+      "returns": "Returns & Exchanges",
+      "support": "Global Support",
+      "rights": "All rights reserved for LUMA Luxury."
+    }
   }
 }
