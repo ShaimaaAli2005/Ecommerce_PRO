@@ -1,38 +1,35 @@
 import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import PageLoader from "../components/loader/PageLoader";
 
-export const ProtectedRoute = ({ children, requiredRole = "admin" }) => {
-  const { user, loading } = useAuth();
+export const ProtectedRoute = ({ requireAdmin = false, requiredRole = null }) => {
+  const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
   const location = useLocation();
 
-  // جلب التوكن واليوزر الاحتياطي من التخزين المحلي فوراً لمنع وميض الخروج
-  const token = localStorage.getItem("token");
-  const storedUser = localStorage.getItem("user")
-    ? JSON.parse(localStorage.getItem("user"))
-    : null;
-
-  const currentUser = user || storedUser;
-
-  // 1. إذا كان لا يزال يحمل الجلسة
-  if (loading && !token) {
-    return null; // أو شاشة تحميل بسيطة
+  if (isLoading) {
+    return <PageLoader />;
   }
 
-  // 2. إذا لم يكن هناك توكن من الأساس، أعد توجيهه لصفحة لوجن الأدمن وليس لوجن المتجر!
-  if (!token) {
-    return <Navigate to="/admin/login" state={{ from: location }} replace />;
+  // التحقق من المصادقة (التوكن أو حالة المستخدم)
+  const hasToken = localStorage.getItem("token") || localStorage.getItem("admin_token") || localStorage.getItem("luma_token");
+  
+  if (!isAuthenticated && !hasToken) {
+    const redirectPath = requireAdmin ? "/admin/login" : "/login";
+    return <Navigate to={redirectPath} state={{ from: location }} replace />;
   }
 
-  // 3. التحقق من صلاحية المشرف
-  if (requiredRole && currentUser?.role && currentUser.role !== requiredRole) {
-    // إذا كان مسجلاً لكن ليس أدمن، امسح التوكن وأعده للوجن الأدمن
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  // التحقق من صلاحيات المشرف إذا كانت مطلوبة
+  if (requireAdmin && !isAdmin && user?.role !== "admin") {
     return <Navigate to="/admin/login" replace />;
   }
 
-  return children;
+  // التحقق من دور مخصص (Role-based) إذا تم تمريره
+  if (requiredRole && user?.role && user.role !== requiredRole) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

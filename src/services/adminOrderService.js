@@ -5,8 +5,13 @@ import axiosInstance from "../api/axiosInstance";
  * GET /orders/admin/dashboard
  */
 export const getAdminDashboardStats = async () => {
-  const response = await axiosInstance.get("/orders/admin/dashboard");
-  return response.data;
+  try {
+    const response = await axiosInstance.get("/orders/admin/dashboard");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching admin dashboard stats:", error);
+    throw error;
+  }
 };
 
 /**
@@ -14,8 +19,13 @@ export const getAdminDashboardStats = async () => {
  * GET /orders/admin/carts
  */
 export const getAdminCarts = async (params = {}) => {
-  const response = await axiosInstance.get("/orders/admin/carts", { params });
-  return response.data;
+  try {
+    const response = await axiosInstance.get("/orders/admin/carts", { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching admin carts:", error);
+    throw error;
+  }
 };
 
 /**
@@ -23,8 +33,13 @@ export const getAdminCarts = async (params = {}) => {
  * GET /orders/admin
  */
 export const getAllOrders = async (params = {}) => {
-  const response = await axiosInstance.get("/orders/admin", { params });
-  return response.data;
+  try {
+    const response = await axiosInstance.get("/orders/admin", { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching all admin orders:", error);
+    throw error;
+  }
 };
 
 /**
@@ -32,8 +47,13 @@ export const getAllOrders = async (params = {}) => {
  * GET /orders/admin/{id}
  */
 export const getOrderById = async (id) => {
-  const response = await axiosInstance.get(`/orders/admin/${id}`);
-  return response.data;
+  try {
+    const response = await axiosInstance.get(`/orders/admin/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching order with ID ${id}:`, error);
+    throw error;
+  }
 };
 
 /**
@@ -42,12 +62,17 @@ export const getOrderById = async (id) => {
  * status: "pending" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled" | "returned"
  */
 export const updateOrderStatus = async (orderId, status, adminNote = "") => {
-  const payload = { status };
-  if (adminNote && adminNote.trim()) {
-    payload.adminNote = adminNote.trim();
+  try {
+    const payload = { status };
+    if (adminNote && adminNote.trim()) {
+      payload.adminNote = adminNote.trim();
+    }
+    const response = await axiosInstance.patch(`/orders/admin/${orderId}/status`, payload);
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating status for order ${orderId}:`, error);
+    throw error;
   }
-  const response = await axiosInstance.patch(`/orders/admin/${orderId}/status`, payload);
-  return response.data;
 };
 
 export const adminOrderService = {
