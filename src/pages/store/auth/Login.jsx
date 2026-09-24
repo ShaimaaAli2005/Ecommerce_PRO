@@ -1,17 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Eye, EyeOff, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import authService from '../../../services/authService';
+import { useAuth } from '../../../context/AuthContext';
+import { useWishlist } from '../../../context/WishlistContext';
+import { useCart } from '../../../context/CartContext';
 
 const Login = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
+  const { loginUser } = useAuth();
+  const { fetchWishlist } = useWishlist();
+  const { fetchCart } = useCart();
+
   const currentLang = i18n.language || 'en';
   const isRtl = currentLang === 'ar';
-  const destination = location.state?.from?.pathname || '/';
+  
+  // استخراج وجهة التوجيه بأمان للمتجر مع استبعاد مسارات الأدمن
+  const getDestinationPath = () => {
+    if (location.state?.from?.pathname) {
+      const fromPath = location.state.from.pathname;
+      if (!fromPath.startsWith('/admin')) {
+        return fromPath;
+      }
+    }
+    const params = new URLSearchParams(location.search);
+    const redirectParam = params.get('redirect');
+    if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('/admin')) {
+      return redirectParam;
+    }
+    return '/';
+  };
+
+  const destination = getDestinationPath();
 
   const [formData, setFormData] = useState({
     email: localStorage.getItem('luma_remembered_email') || '',
@@ -75,18 +100,23 @@ const Login = () => {
         password: formData.password,
       });
 
-      const token = res?.token || res?.data?.token;
-      if (token) {
-        localStorage.setItem('token', token);
-      }
+      // 1. تحديث سياق المصادقة فورياً
+      loginUser(res);
 
+      // 2. إدارة خاصية تذكر البريد
       if (formData.rememberMe) {
         localStorage.setItem('luma_remembered_email', formData.email.trim());
       } else {
         localStorage.removeItem('luma_remembered_email');
       }
 
+      // 3. مزامنة بيانات السلة والمفضلة الخاصة بالمستخدم فوراً
+      if (typeof fetchWishlist === 'function') fetchWishlist();
+      if (typeof fetchCart === 'function') fetchCart(true);
+
       toast.success(t('login.success.loginSuccess', 'Logged in successfully'));
+
+      // 4. التوجيه المباشر لمسارات المتجر فقط
       navigate(destination, { replace: true });
     } catch (err) {
       const errorMsg = err.response?.data?.message || t('login.errors.loginFailed', 'Login failed, please check your credentials');
@@ -99,7 +129,14 @@ const Login = () => {
   const handleGoogleLogin = () => {
     setIsGoogleLoading(true);
     timerRef.current = setTimeout(() => {
-      localStorage.setItem('token', 'sample-google-oauth-token-999');
+      const mockGoogleUser = {
+        _id: 'google-oauth-user-id',
+        username: 'Google VIP Member',
+        email: formData.email || 'vip@luma.store',
+        role: 'customer'
+      };
+      
+      loginUser(mockGoogleUser, 'sample-google-oauth-token-999');
       setIsGoogleLoading(false);
       toast.success(t('login.success.googleSuccess', 'Google login successful'));
       navigate(destination, { replace: true });
@@ -144,7 +181,7 @@ const Login = () => {
 
           <div className="relative z-10 backdrop-blur-xl bg-white/10 border border-white/20 p-4 rounded-2xl flex items-center gap-3.5 shadow-2xl">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E89A5B] to-[#b86d30] text-white flex items-center justify-center font-bold text-base shadow-md">
-              ✦
+              <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
               <p className="text-xs font-bold text-white tracking-wide">
@@ -157,7 +194,7 @@ const Login = () => {
           </div>
         </div>
 
-        {/* الجانب الأيمن (نموذج الإدخال) */}
+        {/* الجانب الأيمن (نموذج تسجيل الدخول) */}
         <div className="md:w-7/12 p-8 sm:p-12 lg:p-14 flex flex-col justify-center bg-white dark:bg-[#111A35] transition-colors duration-300">
           <div className="max-w-md w-full mx-auto">
             
@@ -258,9 +295,9 @@ const Login = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className={`absolute top-1/2 -translate-y-1/2 ${
                       isRtl ? 'left-3' : 'right-3'
-                    } text-xs text-[#7B8190] dark:text-slate-400 hover:text-[#17233C] dark:hover:text-white p-1 cursor-pointer transition-colors`}
+                    } text-[#7B8190] dark:text-slate-400 hover:text-[#17233C] dark:hover:text-white p-1 cursor-pointer transition-colors`}
                   >
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
                 {errors.password && (
@@ -301,9 +338,11 @@ const Login = () => {
                 ) : (
                   <>
                     <span>{t('login.submitBtn', 'Sign In')}</span>
-                    <span className={`transition-transform duration-300 ${isRtl ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`}>
-                      {isRtl ? '←' : '→'}
-                    </span>
+                    {isRtl ? (
+                      <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
+                    ) : (
+                      <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    )}
                   </>
                 )}
               </button>

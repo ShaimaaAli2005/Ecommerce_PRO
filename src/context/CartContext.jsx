@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import cartService from '../services/cartService';
 import toast from 'react-hot-toast';
@@ -8,6 +9,7 @@ const CartContext = createContext();
 export const CartProvider = ({ children }) => {
   const { t, i18n } = useTranslation();
   const isRtl = (i18n.language || 'ar').startsWith('ar');
+  const navigate = useNavigate();
   
   const [cart, setCart] = useState({
     items: [],
@@ -20,41 +22,81 @@ export const CartProvider = ({ children }) => {
   
   const [loading, setLoading] = useState(false);
   
-  // مراجع لتخزين الكميات التراكمية لكل منتج لضمان عدم ضياع أي ضغطة
+  // مراجع لتخزين الضغطات المتتالية وتأخير الاستدعاءات (Debouncing)
   const pendingDeltas = useRef({});
   const syncTimeouts = useRef({});
 
-  // دالة دمج المنتجات المتطابقة لمنع تكرار نفس المنتج في القائمة
+  // تنظيف الـ Timeouts عند إغلاق المكون
+  useEffect(() => {
+    return () => {
+      Object.values(syncTimeouts.current).forEach(clearTimeout);
+    };
+  }, []);
+
+  // فحص تسجيل الدخول
+  const checkAuth = () => {
+    return Boolean(
+      localStorage.getItem('token') || 
+      localStorage.getItem('admin_token') || 
+      localStorage.getItem('luma_token')
+    );
+  };
+
+  // استخراج معرّف المنتج الصافي
+  const getCleanId = (target) => {
+    if (!target) return "";
+    if (typeof target === "string") return target.trim();
+    if (typeof target === "object") {
+      return String(target.productId || target.product?._id || target.product?.id || target.product || target._id || target.id || "").trim();
+    }
+    return String(target).trim();
+  };
+
+  // دمج المنتجات المتطابقة مع الحفاظ على البيانات الكاملة
   const mergeDuplicateItems = (items) => {
     if (!Array.isArray(items)) return [];
     const map = new Map();
+
     items.forEach(item => {
-      const rawProd = item.product;
-      const pId = (typeof rawProd === 'object' && rawProd !== null) ? (rawProd._id || rawProd.id) : (rawProd || item._id || item.id);
+      const pId = getCleanId(item);
       if (!pId) return;
-      
-      const itemIdStr = String(pId);
-      if (map.has(itemIdStr)) {
-        const existing = map.get(itemIdStr);
+
+      if (map.has(pId)) {
+        const existing = map.get(pId);
         existing.quantity += (Number(item.quantity) || 1);
       } else {
-        map.set(itemIdStr, { 
-          ...item, 
-          _uniqueKey: itemIdStr,
-          product: itemIdStr 
+        map.set(pId, { 
+          ...item,
+          productId: pId,
+          _uniqueKey: pId,
+          price: Number(item.price || item.product?.price || 0),
+          quantity: Number(item.quantity || 1)
         });
       }
     });
+
     return Array.from(map.values());
   };
 
-  // جلب السلة من السيرفر بصمت
+  // جلب السلة من السيرفر
   const fetchCart = useCallback(async (silent = false) => {
+    if (!checkAuth()) {
+      setCart({
+        items: [],
+        itemCount: 0,
+        subtotal: 0,
+        discountAmount: 0,
+        total: 0,
+        coupon: null
+      });
+      return;
+    }
+
     try {
       if (!silent) setLoading(true);
       const res = await cartService.getMyCart();
       if (res && res.success) {
-        const mergedItems = mergeDuplicateItems(res.items || []);
+        const mergedItems = mergeDuplicateItems(res.items || res.cart?.items || []);
         const calculatedCount = mergedItems.reduce((acc, i) => acc + (Number(i.quantity) || 1), 0);
         const calculatedSubtotal = mergedItems.reduce((acc, i) => acc + (Number(i.price || 0) * (Number(i.quantity) || 1)), 0);
 
@@ -62,13 +104,23 @@ export const CartProvider = ({ children }) => {
           items: mergedItems,
           itemCount: res.itemCount !== undefined ? res.itemCount : calculatedCount,
           subtotal: res.subtotal !== undefined ? res.subtotal : calculatedSubtotal,
-          discountAmount: res.discountAmount || 0,
-          total: res.total !== undefined ? res.total : calculatedSubtotal,
+          discountAmount: Number(res.discountAmount || 0),
+          total: res.total !== undefined ? res.total : Math.max(0, calculatedSubtotal - (res.discountAmount || 0)),
           coupon: res.coupon || null
         });
       }
     } catch (err) {
-      // صامت
+      if (err?.response?.status === 401) {
+        localStorage.removeItem('token');
+        setCart({
+          items: [],
+          itemCount: 0,
+          subtotal: 0,
+          discountAmount: 0,
+          total: 0,
+          coupon: null
+        });
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -78,17 +130,34 @@ export const CartProvider = ({ children }) => {
     fetchCart();
   }, [fetchCart]);
 
-  // إضافة منتج للسلة بتجميع دقيق للضغطات السريعة دون ضياع أي ضغطة
-  const addToCartGlobal = async (productId, quantity = 1) => {
-    const pIdStr = String(productId);
+  // إضافة منتج للسلة مع دعم التحديث البصري الذكي وتجميع الضغطات
+  const addToCartGlobal = async (productOrId, quantity = 1) => {
+    if (!checkAuth()) {
+      toast.error(t('store.auth.unauthorized', isRtl ? 'يرجى تسجيل الدخول أولاً لإضافة المنتجات إلى السلة' : 'Please sign in first to add items to cart'));
+      navigate('/login');
+      return;
+    }
 
-    // 1. تجميع الضغطات فوراً محلياً لضمان عدم ضياع أي ضغطة (حتى لو ضغطت 100 مرة)
+    const pIdStr = getCleanId(productOrId);
+    if (!pIdStr) return;
+
+    // استخراج بيانات المنتج الأولية للتحديث البصري
+    let prodMeta = { name: t('store.cart_item.default_name', 'Product'), price: 0, image: '' };
+    if (typeof productOrId === 'object' && productOrId !== null) {
+      prodMeta = {
+        name: productOrId.name || productOrId.title || prodMeta.name,
+        price: Number(productOrId.discountPrice && productOrId.discountPrice > 0 ? productOrId.discountPrice : (productOrId.price || 0)),
+        image: productOrId.images?.[0]?.url || productOrId.image || productOrId.imageUrl || ''
+      };
+    }
+
+    // 1. تجميع الضغطات السريعة
     pendingDeltas.current[pIdStr] = (pendingDeltas.current[pIdStr] || 0) + quantity;
 
-    // 2. تحديث فوري للواجهة بصرياً
+    // 2. تحديث تفاؤلي فوري
     setCart(prev => {
       let updatedItems = [...prev.items];
-      const existingIndex = updatedItems.findIndex(i => String(i.product || i._id) === pIdStr);
+      const existingIndex = updatedItems.findIndex(i => getCleanId(i) === pIdStr);
 
       if (existingIndex > -1) {
         updatedItems[existingIndex] = {
@@ -97,11 +166,13 @@ export const CartProvider = ({ children }) => {
         };
       } else {
         updatedItems.push({ 
-          product: pIdStr, 
+          product: pIdStr,
+          productId: pIdStr,
           _uniqueKey: pIdStr,
           quantity, 
-          price: 0, 
-          name: "منتج" 
+          price: prodMeta.price, 
+          name: prodMeta.name,
+          image: prodMeta.image
         });
       }
 
@@ -117,29 +188,29 @@ export const CartProvider = ({ children }) => {
       };
     });
 
-    toast.success(t('store.cart_toast.added_success', 'Item added to cart successfully'));
+    toast.success(t('store.cart_toast.added_success', isRtl ? 'تمت إضافة المنتج إلى السلة' : 'Item added to cart successfully'));
 
-    // 3. إرسال الحصيلة النهائية للخادم بعد توقف المستخدم عن الضغط بـ 400 ميلي ثانية
+    // 3. إرسال الطلب للخادم بعد استقرار الضغط بـ 400ms
     if (syncTimeouts.current[pIdStr]) {
       clearTimeout(syncTimeouts.current[pIdStr]);
     }
 
     syncTimeouts.current[pIdStr] = setTimeout(async () => {
       const totalDelta = pendingDeltas.current[pIdStr] || 0;
-      pendingDeltas.current[pIdStr] = 0; // تفريغ العداد المؤقت
+      pendingDeltas.current[pIdStr] = 0;
 
       if (totalDelta <= 0) return;
 
       try {
-        const res = await cartService.addToCart(productId, totalDelta);
+        const res = await cartService.addToCart(pIdStr, totalDelta);
         if (res && res.success) {
-          const mergedItems = mergeDuplicateItems(res.items || []);
+          const mergedItems = mergeDuplicateItems(res.items || res.cart?.items || []);
           setCart({
             items: mergedItems,
-            itemCount: res.itemCount || mergedItems.reduce((acc, i) => acc + i.quantity, 0),
-            subtotal: res.subtotal || 0,
-            discountAmount: res.discountAmount || 0,
-            total: res.total || 0,
+            itemCount: res.itemCount !== undefined ? res.itemCount : mergedItems.reduce((acc, i) => acc + i.quantity, 0),
+            subtotal: res.subtotal !== undefined ? res.subtotal : 0,
+            discountAmount: Number(res.discountAmount || 0),
+            total: res.total !== undefined ? res.total : 0,
             coupon: res.coupon || null
           });
         }
@@ -150,23 +221,23 @@ export const CartProvider = ({ children }) => {
         } else {
           toast.error(serverMessage || t('store.cart_toast.add_error', 'Failed to add item'));
         }
-        fetchCart(true); // مزامنة إجبارية عند الخطأ
+        fetchCart(true);
       }
     }, 400);
   };
 
   // تحديث كمية منتج
-  const updateQuantityGlobal = async (productId, quantity) => {
-    if (quantity <= 0) {
-      return removeFromCartGlobal(productId);
-    }
+  const updateQuantityGlobal = async (productOrId, quantity) => {
+    const pIdStr = getCleanId(productOrId);
+    if (!pIdStr) return;
 
-    const pIdStr = String(productId);
+    if (quantity <= 0) {
+      return removeFromCartGlobal(pIdStr);
+    }
 
     setCart(prev => {
       const updatedItems = prev.items.map(item => {
-        const currentId = String(item.product || item._id);
-        if (currentId === pIdStr) {
+        if (getCleanId(item) === pIdStr) {
           return { ...item, quantity };
         }
         return item;
@@ -175,7 +246,7 @@ export const CartProvider = ({ children }) => {
       const newSubtotal = updatedItems.reduce((acc, item) => acc + (Number(item.price || 0) * item.quantity), 0);
       const discount = prev.discountAmount || 0;
       const newTotal = Math.max(0, newSubtotal - discount);
-      const newCount = updatedItems.reduce((acc, item) => item.quantity, 0);
+      const newCount = updatedItems.reduce((acc, item) => acc + item.quantity, 0);
 
       return {
         ...prev,
@@ -192,9 +263,9 @@ export const CartProvider = ({ children }) => {
 
     syncTimeouts.current[`update_${pIdStr}`] = setTimeout(async () => {
       try {
-        const res = await cartService.updateCartItem(productId, quantity);
+        const res = await cartService.updateCartItem(pIdStr, quantity);
         if (res && res.success) {
-          const mergedItems = mergeDuplicateItems(res.items || []);
+          const mergedItems = mergeDuplicateItems(res.items || res.cart?.items || []);
           setCart(prev => ({
             ...prev,
             items: mergedItems,
@@ -218,11 +289,12 @@ export const CartProvider = ({ children }) => {
   };
 
   // حذف منتج من السلة فورياً
-  const removeFromCartGlobal = async (productId) => {
-    const pIdStr = String(productId);
+  const removeFromCartGlobal = async (productOrId) => {
+    const pIdStr = getCleanId(productOrId);
+    if (!pIdStr) return;
 
     setCart(prev => {
-      const updatedItems = prev.items.filter(item => String(item.product || item._id) !== pIdStr);
+      const updatedItems = prev.items.filter(item => getCleanId(item) !== pIdStr);
       const newCount = updatedItems.reduce((acc, item) => acc + item.quantity, 0);
       const newSubtotal = updatedItems.reduce((acc, item) => acc + (Number(item.price || 0) * item.quantity), 0);
       
@@ -235,18 +307,18 @@ export const CartProvider = ({ children }) => {
       };
     });
 
-    toast.success(t('store.cart_toast.remove_success', 'Item removed from cart'));
+    toast.success(t('store.cart_toast.remove_success', isRtl ? 'تم حذف العنصر من السلة' : 'Item removed from cart'));
 
     try {
-      const res = await cartService.removeFromCart(productId);
+      const res = await cartService.removeFromCart(pIdStr);
       if (res && res.success) {
-        const mergedItems = mergeDuplicateItems(res.items || []);
+        const mergedItems = mergeDuplicateItems(res.items || res.cart?.items || []);
         setCart({
           items: mergedItems,
-          itemCount: res.itemCount || 0,
-          subtotal: res.subtotal || 0,
-          discountAmount: res.discountAmount || 0,
-          total: res.total || 0,
+          itemCount: res.itemCount !== undefined ? res.itemCount : mergedItems.reduce((acc, i) => acc + i.quantity, 0),
+          subtotal: res.subtotal !== undefined ? res.subtotal : 0,
+          discountAmount: Number(res.discountAmount || 0),
+          total: res.total !== undefined ? res.total : 0,
           coupon: res.coupon || null
         });
       }
@@ -256,18 +328,18 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  // تطبيق كوبون
+  // تطبيق كود كوبون
   const applyCouponGlobal = async (code) => {
     try {
       const res = await cartService.applyCoupon(code);
       if (res && res.success) {
-        const mergedItems = mergeDuplicateItems(res.items || cart.items);
+        const mergedItems = mergeDuplicateItems(res.items || res.cart?.items || cart.items);
         setCart({
           items: mergedItems,
-          itemCount: res.itemCount || cart.itemCount,
-          subtotal: res.subtotal || cart.subtotal,
-          discountAmount: res.discountAmount || cart.discountAmount,
-          total: res.total || cart.total,
+          itemCount: res.itemCount !== undefined ? res.itemCount : cart.itemCount,
+          subtotal: res.subtotal !== undefined ? res.subtotal : cart.subtotal,
+          discountAmount: Number(res.discountAmount || 0),
+          total: res.total !== undefined ? res.total : cart.total,
           coupon: res.coupon || code
         });
         toast.success(res.message || t('store.cart_toast.coupon_success', 'Coupon applied successfully!'));
@@ -286,9 +358,9 @@ export const CartProvider = ({ children }) => {
       if (res && res.success) {
         setCart(prev => ({
           ...prev,
-          subtotal: res.subtotal || prev.subtotal,
+          subtotal: res.subtotal !== undefined ? res.subtotal : prev.subtotal,
           discountAmount: 0,
-          total: res.total || prev.subtotal,
+          total: res.total !== undefined ? res.total : prev.subtotal,
           coupon: null
         }));
         toast.success(t('store.cart_toast.coupon_removed', 'Coupon removed'));
@@ -333,4 +405,12 @@ export const CartProvider = ({ children }) => {
   );
 };
 
-export const useCart = () => useContext(CartContext);
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
+};
+
+export default CartContext;

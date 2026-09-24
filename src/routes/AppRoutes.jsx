@@ -24,6 +24,11 @@ export const AppRoutes = () => {
     <Suspense fallback={<PageLoader />}>
       <Routes>
 
+        <Route element={<ProtectedRoute requireAdmin={false} />}>
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />
+        </Route>
+
         {/* مسارات المتجر */}
         <Route element={<StoreLayout />}>
           <Route path="/" element={<HomePage />} />

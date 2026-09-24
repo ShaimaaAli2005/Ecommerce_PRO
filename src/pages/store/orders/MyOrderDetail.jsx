@@ -1,8 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Package, ArrowLeft, ArrowRight, Truck, MapPin, CreditCard, Clock, CheckCircle2, XCircle, Ban } from 'lucide-react';
-import orderService from '../../../services/orderService';
+import { 
+  Package, 
+  ArrowLeft, 
+  ArrowRight, 
+  Truck, 
+  MapPin, 
+  CreditCard, 
+  Clock, 
+  CheckCircle2, 
+  XCircle, 
+  Ban,
+  FileText
+} from 'lucide-react';
+import orderService from '../../../services/productService';
 import toast from 'react-hot-toast';
 
 export default function MyOrderDetail() {
@@ -21,6 +33,8 @@ export default function MyOrderDetail() {
       const res = await orderService.getMyOrderById(id);
       if (res && res.success) {
         setOrder(res.order || res);
+      } else if (res && res._id) {
+        setOrder(res);
       }
     } catch (err) {
       toast.error(isRtl ? 'تعذر جلب تفاصيل الطلب' : 'Failed to fetch order details');
@@ -69,7 +83,8 @@ export default function MyOrderDetail() {
 
   const address = order.shippingAddress || {};
   const items = order.items || [];
-  const canCancel = order.status === 'pending' || order.status === 'confirmed';
+  const normalizedStatus = String(order.status || '').toLowerCase();
+  const canCancel = normalizedStatus === 'pending' || normalizedStatus === 'confirmed';
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] dark:bg-[#0F172A] text-slate-900 dark:text-white py-10 px-4 sm:px-6 lg:px-8 font-['Inter'] transition-colors duration-300" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -81,7 +96,7 @@ export default function MyOrderDetail() {
             <button
               type="button"
               onClick={() => navigate('/my-orders')}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-bold hover:bg-slate-50 transition cursor-pointer mb-2"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-xs font-bold hover:bg-slate-50 dark:hover:bg-gray-700 transition cursor-pointer mb-2"
             >
               {isRtl ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
               <span>{t('store.order_detail.back', 'Back to My Orders')}</span>
@@ -96,7 +111,7 @@ export default function MyOrderDetail() {
               type="button"
               disabled={cancelling}
               onClick={handleCancelOrder}
-              className="px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 text-xs font-bold transition flex items-center gap-2 cursor-pointer self-start sm:self-auto disabled:opacity-50"
+              className="px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-bold transition flex items-center gap-2 cursor-pointer self-start sm:self-auto disabled:opacity-50"
             >
               <Ban className="w-4 h-4" />
               <span>{cancelling ? (isRtl ? 'جاري الإلغاء...' : 'Cancelling...') : (isRtl ? 'إلغاء الطلب' : 'Cancel Order')}</span>
@@ -109,7 +124,7 @@ export default function MyOrderDetail() {
           {/* تفاصيل المنتجات وعنوان الشحن */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* المنتجات */}
+            {/* المنتجات المطلوبة */}
             <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 p-6 space-y-4 shadow-xs">
               <h2 className="text-sm font-bold font-['Poppins'] text-slate-900 dark:text-white border-b border-slate-100 dark:border-gray-700 pb-3">
                 {t('store.order_detail.items_list', 'Ordered Items')} ({items.length})
@@ -118,10 +133,14 @@ export default function MyOrderDetail() {
               <div className="space-y-4">
                 {items.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-gray-900 border border-slate-100 dark:border-gray-700">
-                    <img src={item.image || 'https://placehold.co/100'} alt={item.name} className="w-16 h-16 object-cover rounded-xl shrink-0" />
+                    <img 
+                      src={item.image || 'https://placehold.co/100'} 
+                      alt={item.name || 'Product'} 
+                      className="w-16 h-16 object-cover rounded-xl shrink-0 border border-slate-200 dark:border-gray-700" 
+                    />
                     <div className="flex-1">
                       <h3 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{item.name}</h3>
-                      <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Qty: {item.quantity}</p>
+                      <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5 font-mono">Qty: {item.quantity}</p>
                     </div>
                     <span className="text-xs font-mono font-bold text-[#E89A5B]">${(Number(item.price || 0) * item.quantity).toFixed(2)}</span>
                   </div>
@@ -138,44 +157,76 @@ export default function MyOrderDetail() {
 
               <div className="text-xs space-y-1.5 text-slate-600 dark:text-gray-300">
                 <p className="font-bold text-slate-900 dark:text-white">{address.fullName}</p>
-                <p>{address.address}, {address.city}, {address.country}</p>
+                <p>{address.address}, {address.city}, {address.country} {address.postalCode && `(${address.postalCode})`}</p>
                 <p className="font-mono">Phone: {address.phone}</p>
               </div>
             </div>
 
+            {/* ملاحظات العميل (إن وجدت) */}
+            {order.customerNote && (
+              <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 p-6 space-y-2 shadow-xs">
+                <h2 className="text-xs font-bold font-['Poppins'] text-slate-900 dark:text-white flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-[#E89A5B]" />
+                  <span>{t('store.checkout.note', 'Order Notes')}</span>
+                </h2>
+                <p className="text-xs text-slate-600 dark:text-gray-400 italic">"{order.customerNote}"</p>
+              </div>
+            )}
+
           </div>
 
           {/* ملخص الفاتورة والحالة */}
-          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 p-6 space-y-6 shadow-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 p-6 space-y-6 shadow-xs sticky top-28">
             <h3 className="text-base font-bold font-['Poppins'] text-slate-900 dark:text-white border-b border-slate-100 dark:border-gray-700 pb-4">
               {t('store.order_detail.summary', 'Order Summary')}
             </h3>
 
             <div className="space-y-3 text-xs">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-500">{t('store.order_detail.status_label', 'Status')}</span>
-                <span className="font-bold uppercase text-[#E89A5B]">{order.status}</span>
+                <span className="font-bold uppercase text-[#E89A5B] bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-md">
+                  {order.status}
+                </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t('store.order_detail.payment', 'Payment')}</span>
-                <span className="font-bold uppercase">{order.paymentMethod}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">{t('store.order_detail.payment', 'Payment Method')}</span>
+                <span className="font-bold uppercase font-mono">{order.paymentMethod}</span>
               </div>
-              <div className="flex justify-between text-slate-600 dark:text-gray-400 pt-2 border-t border-slate-100 dark:border-gray-700">
+              {order.paymentStatus && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Payment Status</span>
+                  <span className="font-bold uppercase text-slate-700 dark:text-gray-300 font-mono">
+                    {order.paymentStatus}
+                  </span>
+                </div>
+              )}
+              
+              <div className="flex justify-between text-slate-600 dark:text-gray-400 pt-3 border-t border-slate-100 dark:border-gray-700">
                 <span>{t('store.cart_page.subtotal', 'Subtotal')}</span>
                 <span className="font-mono font-bold">${Number(order.subtotal || 0).toFixed(2)}</span>
               </div>
-              {order.shippingFee > 0 && (
+
+              {Number(order.discount || 0) > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span>{t('store.cart_page.discount', 'Discount')}</span>
+                  <span className="font-mono">-${Number(order.discount).toFixed(2)}</span>
+                </div>
+              )}
+
+              {Number(order.shippingFee || 0) > 0 && (
                 <div className="flex justify-between text-slate-600 dark:text-gray-400">
                   <span>Shipping Fee</span>
-                  <span className="font-mono">${Number(order.shippingFee || 0).toFixed(2)}</span>
+                  <span className="font-mono">${Number(order.shippingFee).toFixed(2)}</span>
                 </div>
               )}
-              {order.tax > 0 && (
+
+              {Number(order.tax || 0) > 0 && (
                 <div className="flex justify-between text-slate-600 dark:text-gray-400">
                   <span>Tax</span>
-                  <span className="font-mono">${Number(order.tax || 0).toFixed(2)}</span>
+                  <span className="font-mono">${Number(order.tax).toFixed(2)}</span>
                 </div>
               )}
+
               <div className="flex justify-between text-slate-900 dark:text-white text-sm font-bold pt-3 border-t border-slate-100 dark:border-gray-700">
                 <span>{t('store.cart_page.total', 'Total')}</span>
                 <span className="font-mono text-base text-[#E89A5B]">${Number(order.totalPrice || 0).toFixed(2)}</span>

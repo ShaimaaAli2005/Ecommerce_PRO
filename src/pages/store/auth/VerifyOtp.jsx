@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { ShieldCheck, ArrowRight, ArrowLeft, Loader2, RotateCcw } from 'lucide-react';
 import { OtpInputGroup } from '../../../components/common/OtpInputGroup';
 import authService from '../../../services/authService';
+import { useAuth } from '../../../context/AuthContext';
 import toast from 'react-hot-toast';
 
 export const VerifyOtp = () => {
@@ -11,12 +12,14 @@ export const VerifyOtp = () => {
   const isRtl = (i18n.language || 'ar').startsWith('ar');
   const navigate = useNavigate();
   const location = useLocation();
+  const { loginUser } = useAuth();
 
-  // استقبال البريد الإلكتروني الممرر من صفحة التسجيل أو نسيت كلمة المرور
+  // استقبال البيانات الممررة من صفحة التسجيل أو استعادة كلمة المرور
   const email = location.state?.email || '';
+  const purpose = location.state?.purpose || 'register'; // 'register' | 'forgot-password'
+  const newPassword = location.state?.newPassword || '';
 
   const [otp, setOtp] = useState('');
-  <OtpInputGroup length={6} value={otp} onChange={setOtp} isRtl={isRtl} />
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [countdown, setCountdown] = useState(60);
@@ -25,11 +28,11 @@ export const VerifyOtp = () => {
 
   useEffect(() => {
     if (!email) {
-      navigate('/login');
+      toast.error(isRtl ? 'يرجى إدخال البريد الإلكتروني أولاً' : 'Please provide an email address');
+      navigate(purpose === 'forgot-password' ? '/forgot-password' : '/register', { replace: true });
       return;
     }
 
-    // تشغيل مؤقت إعادة الإرسال
     timerRef.current = setInterval(() => {
       setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
@@ -37,22 +40,42 @@ export const VerifyOtp = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [email, navigate]);
+  }, [email, navigate, purpose, isRtl]);
 
   const handleVerifySubmit = async (e) => {
     e.preventDefault();
     if (otp.length < 6) {
-      toast.error(isRtl ? 'يرجى إدخال رموز التحقق الستة كاملاً' : 'Please enter the 6-digit verification code');
+      toast.error(isRtl ? 'يرجى إدخال رموز التحقق الستة كاملة' : 'Please enter the full 6-digit verification code');
       return;
     }
 
     setIsLoading(true);
     try {
-      // استدعاء خدمة التحقق من الـ OTP (تعدل بحسب اسم الدالة لديك مثل verifyRegisterOtp أو verifyForgotPasswordOtp)
-      await authService.verifyRegisterOtp({ email, otp });
-      
-      toast.success(isRtl ? 'تم التحقق بنجاح!' : 'Verified successfully!');
-      navigate('/login', { replace: true });
+      if (purpose === 'forgot-password') {
+        const res = await authService.verifyForgotPasswordOtp({
+          email: email.trim().toLowerCase(),
+          otp: otp.trim(),
+          newPassword
+        });
+
+        toast.success(res?.message || (isRtl ? 'تم تحديث كلمة المرور بنجاح!' : 'Password reset successfully!'));
+        navigate('/login', { replace: true });
+      } else {
+        const res = await authService.verifyRegisterOtp({ 
+          email: email.trim().toLowerCase(), 
+          otp: otp.trim() 
+        });
+
+        toast.success(res?.message || (isRtl ? 'تم تفعيل الحساب بنجاح!' : 'Account verified successfully!'));
+
+        // تسجيل الدخول التلقائي إذا أرجع السيرفر التوكن
+        if (res?.token || res?.user) {
+          loginUser(res);
+          navigate('/', { replace: true });
+        } else {
+          navigate('/login', { replace: true });
+        }
+      }
     } catch (err) {
       const errorMsg = err.response?.data?.message || (isRtl ? 'رمز التحقق غير صحيح أو انتهت صلاحيته' : 'Invalid or expired code');
       toast.error(errorMsg);
@@ -62,15 +85,26 @@ export const VerifyOtp = () => {
   };
 
   const handleResendCode = async () => {
-    if (countdown > 0) return;
+    if (countdown > 0 || isResending) return;
 
     setIsResending(true);
     try {
-      await authService.sendRegisterOtp({ email });
+      if (purpose === 'forgot-password') {
+        await authService.sendForgotPasswordOtp(email.trim().toLowerCase());
+      } else {
+        // في التسجيل نمرر البريد أو بيانات التسجيل المخزنة
+        await authService.sendRegisterOtp({ 
+          email: email.trim().toLowerCase(),
+          username: location.state?.username || 'User',
+          password: location.state?.password || 'TempPassword123',
+          phone: location.state?.phone || ''
+        });
+      }
+
       toast.success(isRtl ? 'تم إرسال رمز جديد إلى بريدك' : 'New code sent to your email');
       setCountdown(60);
     } catch (err) {
-      toast.error(isRtl ? 'تعذر إعادة إرسال الرمز' : 'Failed to resend code');
+      toast.error(err.response?.data?.message || (isRtl ? 'تعذر إعادة إرسال الرمز' : 'Failed to resend code'));
     } finally {
       setIsResending(false);
     }
@@ -88,16 +122,16 @@ export const VerifyOtp = () => {
             <ShieldCheck className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-black text-[#17233C] dark:text-white font-['Poppins']">
-            {isRtl ? 'التحقق من الحساب' : 'Security Verification'}
+            {isRtl ? 'التحقق الأمني' : 'Security Verification'}
           </h2>
-          <p className="text-xs text-[#7B8190] dark:text-slate-400 leading-relaxed">
-            {isRtl ? 'أدخل رمز التحقق المكون من 6 أرقام المرسل إلى بريدك:' : 'Enter the 6-digit code sent to your email:'}
-            <span className="block font-bold text-[#17233C] dark:text-white mt-1">{email}</span>
+          <p className="text-xs text-[#7B8190] dark:text-slate-400 leading-relaxed font-light">
+            {isRtl ? 'أدخل رمز التحقق المكون من 6 أرقام المرسل إلى:' : 'Enter the 6-digit code sent to:'}
+            <span className="block font-bold text-[#17233C] dark:text-white mt-1 font-mono text-sm">{email}</span>
           </p>
         </div>
 
         <form onSubmit={handleVerifySubmit} className="space-y-6">
-          {/* استخدام مكون OtpInputGroup الذي أنشأناه للتو */}
+          {/* حقول إدخال OTP الموزعة */}
           <OtpInputGroup length={6} value={otp} onChange={setOtp} isRtl={isRtl} />
 
           <button
@@ -119,18 +153,27 @@ export const VerifyOtp = () => {
           </button>
         </form>
 
-        <div className="text-center text-xs text-[#7B8190] dark:text-slate-400 space-y-2">
-          <p>{isRtl ? 'لم تستلم الرمز؟' : "Didn't receive code?"}</p>
+        <div className="flex flex-col items-center gap-3 text-center text-xs text-[#7B8190] dark:text-slate-400">
           <button
             type="button"
             onClick={handleResendCode}
             disabled={countdown > 0 || isResending}
-            className="font-bold text-[#17233C] dark:text-[#E89A5B] hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer"
+            className="font-bold text-[#E89A5B] hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer flex items-center gap-1.5"
           >
-            {countdown > 0
-              ? (isRtl ? `إعادة الإرسال خلال ${countdown} ثانية` : `Resend code in ${countdown}s`)
-              : (isRtl ? 'إعادة إرسال الرمز الآن' : 'Resend Code Now')}
+            <RotateCcw className={`w-3.5 h-3.5 ${isResending ? 'animate-spin' : ''}`} />
+            <span>
+              {countdown > 0
+                ? (isRtl ? `إعادة الإرسال خلال ${countdown} ثانية` : `Resend code in ${countdown}s`)
+                : (isRtl ? 'إعادة إرسال الرمز الآن' : 'Resend Code Now')}
+            </span>
           </button>
+
+          <Link
+            to={purpose === 'forgot-password' ? '/forgot-password' : '/register'}
+            className="text-[11px] text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          >
+            ← {isRtl ? 'تعديل البريد الإلكتروني' : 'Edit Email Address'}
+          </Link>
         </div>
 
       </div>

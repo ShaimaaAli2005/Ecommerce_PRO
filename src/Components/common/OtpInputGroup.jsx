@@ -1,6 +1,12 @@
 import React, { useRef, useEffect } from 'react';
 
-export const OtpInputGroup = ({ length = 6, value = '', onChange, isRtl = false }) => {
+export const OtpInputGroup = ({ 
+  length = 6, 
+  value = '', 
+  onChange, 
+  isRtl = false,
+  autoFocus = true 
+}) => {
   const inputRefs = useRef([]);
 
   // تحويل القيمة النصية إلى مصفوفة خانات
@@ -8,6 +14,13 @@ export const OtpInputGroup = ({ length = 6, value = '', onChange, isRtl = false 
   while (digits.length < length) {
     digits.push('');
   }
+
+  // تركيز تلقائي على الخانة الأولى عند التحميل
+  useEffect(() => {
+    if (autoFocus && inputRefs.current[0]) {
+      inputRefs.current[0].focus();
+    }
+  }, [autoFocus]);
 
   const handleChange = (e, index) => {
     const val = e.target.value;
@@ -19,9 +32,9 @@ export const OtpInputGroup = ({ length = 6, value = '', onChange, isRtl = false 
     newDigits[index] = val.slice(-1);
     
     const combined = newDigits.join('');
-    onChange(combined);
+    onChange?.(combined);
 
-    // الانتقال التلقائي للخنة التالية
+    // الانتقال التلقائي للخانة التالية
     if (val && index < length - 1) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -30,21 +43,27 @@ export const OtpInputGroup = ({ length = 6, value = '', onChange, isRtl = false 
   const handleKeyDown = (e, index) => {
     if (e.key === 'Backspace') {
       if (!digits[index] && index > 0) {
-        // إذا كانت الخنة فارغة وتم الضغط على مسح، نرجع للخنة السابقة ونمسحها
+        // إذا كانت الخانة فارغة، نرجع للخانة السابقة ونمسحها
         const newDigits = [...digits];
         newDigits[index - 1] = '';
-        onChange(newDigits.join(''));
+        onChange?.(newDigits.join(''));
         inputRefs.current[index - 1]?.focus();
       } else if (digits[index]) {
-        // مسح الخنة الحالية
+        // مسح الخانة الحالية
         const newDigits = [...digits];
         newDigits[index] = '';
-        onChange(newDigits.join(''));
+        onChange?.(newDigits.join(''));
       }
-    } else if (e.key === 'ArrowLeft' && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    } else if (e.key === 'ArrowRight' && index < length - 1) {
-      inputRefs.current[index + 1]?.focus();
+    } else if (e.key === 'ArrowLeft') {
+      const targetIndex = isRtl ? index + 1 : index - 1;
+      if (targetIndex >= 0 && targetIndex < length) {
+        inputRefs.current[targetIndex]?.focus();
+      }
+    } else if (e.key === 'ArrowRight') {
+      const targetIndex = isRtl ? index - 1 : index + 1;
+      if (targetIndex >= 0 && targetIndex < length) {
+        inputRefs.current[targetIndex]?.focus();
+      }
     }
   };
 
@@ -53,25 +72,32 @@ export const OtpInputGroup = ({ length = 6, value = '', onChange, isRtl = false 
     const pasteData = e.clipboardData.getData('text').trim();
     if (/^\d+$/.test(pasteData)) {
       const pastedDigits = pasteData.slice(0, length);
-      onChange(pastedDigits);
+      onChange?.(pastedDigits);
       const nextIndex = Math.min(pastedDigits.length, length - 1);
       inputRefs.current[nextIndex]?.focus();
     }
   };
 
   return (
-    <div className="flex items-center justify-center gap-2 sm:gap-3" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div 
+      className="flex items-center justify-center gap-2 sm:gap-3" 
+      dir={isRtl ? 'rtl' : 'ltr'}
+    >
       {digits.map((digit, index) => (
         <input
           key={index}
           ref={(el) => (inputRefs.current[index] = el)}
           type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete={index === 0 ? "one-time-code" : "off"}
           maxLength={1}
           value={digit}
+          onFocus={(e) => e.target.select()}
           onChange={(e) => handleChange(e, index)}
           onKeyDown={(e) => handleKeyDown(e, index)}
           onPaste={handlePaste}
-          className="w-11 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold font-mono rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-slate-900/60 text-[#0B132B] dark:text-white focus:border-[#E89A5B] focus:ring-2 focus:ring-[#E89A5B]/20 outline-none transition-all shadow-xs"
+          className="w-11 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold font-mono rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-[#0B132B] text-[#17233C] dark:text-white focus:border-[#E89A5B] focus:ring-2 focus:ring-[#E89A5B]/20 outline-none transition-all shadow-xs"
         />
       ))}
     </div>

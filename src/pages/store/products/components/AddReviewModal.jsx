@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Star, Send } from 'lucide-react';
-import axiosInstance from '../../../../api/axiosInstance';
+import productService from '../../../../services/productService';
 import toast from 'react-hot-toast';
 
 export default function AddReviewModal({ productId, isOpen, onClose, onReviewAdded }) {
@@ -16,51 +16,75 @@ export default function AddReviewModal({ productId, isOpen, onClose, onReviewAdd
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const token = localStorage.getItem('token') || localStorage.getItem('admin_token');
+    if (!token) {
+      toast.error(t('store.auth.unauthorized', 'Please sign in first to review products'));
+      return;
+    }
+
     if (!comment.trim()) {
-      toast.error(isRtl ? 'يرجى كتابة تعليق التقييم' : 'Please enter a review comment');
+      toast.error(t('store.reviews.error_empty_comment', 'Please enter a review comment'));
       return;
     }
 
     try {
       setLoading(true);
-      const res = await axiosInstance.post(`/products/${productId}/reviews`, {
-        rating,
-        comment
+      const res = await productService.addProductReview(productId, {
+        rating: Number(rating),
+        comment: comment.trim()
       });
 
-      if (res && res.data) {
-        toast.success(isRtl ? 'تم إضافة تقييمك بنجاح' : 'Review added successfully');
-        if (onReviewAdded) onReviewAdded(res.data.review || res.data);
+      if (res && (res.success || res.review)) {
+        toast.success(t('store.reviews.success_added', 'Review added successfully'));
+        if (typeof onReviewAdded === 'function') {
+          onReviewAdded(res.review || res.data || res);
+        }
+        setComment('');
+        setRating(5);
         onClose();
       }
     } catch (err) {
-      const errorMsg = err?.response?.data?.message || (isRtl ? 'تعذر إرسال التقييم' : 'Failed to submit review');
-      toast.error(errorMsg);
+      const status = err?.response?.status;
+      const apiMessage = err?.response?.data?.message;
+
+      if (status === 400 && String(apiMessage).toLowerCase().includes('already reviewed')) {
+        toast.error(t('store.reviews.already_reviewed', 'You have already reviewed this product.'));
+      } else {
+        toast.error(apiMessage || t('store.reviews.error_failed', 'Failed to submit review'));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-lg p-6 sm:p-8 space-y-6 shadow-2xl border border-black/5 dark:border-white/10 animate-fadeIn font-['Poppins']">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" dir={isRtl ? 'rtl' : 'ltr'}>
+      <div className="bg-white dark:bg-[#121c38] rounded-3xl w-full max-w-lg p-6 sm:p-8 space-y-6 shadow-2xl border border-black/5 dark:border-white/10 font-['Poppins']">
         
+        {/* الترويسة */}
         <div className="flex items-center justify-between border-b border-black/5 dark:border-white/10 pb-4">
           <h3 className="text-base font-black uppercase tracking-wider text-[#0B132B] dark:text-white">
             {t('store.reviews.add_title', 'Add Your Review')}
           </h3>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer">
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer text-slate-500 hover:text-slate-800 dark:hover:text-white"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {/* نموذج كتابة المراجعة */}
         <form onSubmit={handleSubmit} className="space-y-5 text-xs">
           
+          {/* اختيار التقييم بالنجوم */}
           <div className="space-y-2">
             <label className="font-bold text-slate-700 dark:text-gray-300">
               {t('store.reviews.rating_label', 'Rating Score')}
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
@@ -68,12 +92,16 @@ export default function AddReviewModal({ productId, isOpen, onClose, onReviewAdd
                   onClick={() => setRating(star)}
                   className="p-1 focus:outline-none transition-transform hover:scale-110 cursor-pointer"
                 >
-                  <Star className={`w-7 h-7 ${star <= rating ? 'text-amber-500 fill-amber-500' : 'text-slate-300 dark:text-gray-600'}`} />
+                  <Star className={`w-7 h-7 transition-colors ${star <= rating ? 'text-amber-500 fill-amber-500' : 'text-slate-300 dark:text-gray-600'}`} />
                 </button>
               ))}
+              <span className="font-mono font-bold text-sm text-[#E89A5B] ms-2">
+                {rating} / 5
+              </span>
             </div>
           </div>
 
+          {/* نص التعليق */}
           <div className="space-y-2">
             <label className="font-bold text-slate-700 dark:text-gray-300">
               {t('store.reviews.comment_label', 'Your Review / Feedback')}
@@ -84,15 +112,16 @@ export default function AddReviewModal({ productId, isOpen, onClose, onReviewAdd
               onChange={(e) => setComment(e.target.value)}
               placeholder={t('store.reviews.comment_placeholder', 'Share your experience with this product...')}
               required
-              className="w-full p-4 rounded-xl bg-slate-50 dark:bg-gray-900 border border-black/10 dark:border-white/10 outline-none focus:border-[#E89A5B] text-slate-900 dark:text-white resize-none"
+              className="w-full p-4 rounded-xl bg-slate-50 dark:bg-gray-900 border border-black/10 dark:border-white/10 outline-none focus:border-[#E89A5B] text-slate-900 dark:text-white resize-none transition"
             />
           </div>
 
+          {/* أزرار الإجراءات */}
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-black/10 dark:border-white/10 font-bold hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer"
+              className="px-5 py-2.5 rounded-xl border border-black/10 dark:border-white/10 font-bold hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer text-slate-700 dark:text-gray-300"
             >
               {t('common.cancel', 'Cancel')}
             </button>
