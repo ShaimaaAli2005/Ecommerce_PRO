@@ -4,31 +4,30 @@ import { useTranslation } from "react-i18next";
 const SettingsContext = createContext(null);
 
 const DEFAULT_SETTINGS = {
-  defaultShippingFee: 50,
-  freeShippingThreshold: 1000,
-  expressShippingFee: 90,
+  defaultShippingFee: 15,
+  freeShippingThreshold: 200,
+  expressShippingFee: 30,
   estimatedDeliveryDays: 3,
   storeName: "LUMA Luxury Concept",
   supportEmail: "concierge@luma-store.com",
   supportPhone: "+201000000000",
   orderNotificationEmail: "orders@luma-store.com",
-  currency: "EGP", // EGP | USD | SAR
+  currency: "USD", // USD | SAR | EGP
   vatRate: 14,
   enableCOD: true,
   enableOnlinePayment: true,
   lowStockThreshold: 5,
   maintenanceMode: false,
-  theme: "light", // light | dark
 };
 
-// أسعار صرف أساسية ثابتة وفورية بدون أي انتظار شبكة
+// أسعار صرف أساسية ثابتة وفورية تعتمد الدولار USD كعملة أساس للمتجر
 const BASE_RATES = {
-  EGP: 1,
-  USD: 0.0205,
-  SAR: 0.077,
+  USD: 1,
+  SAR: 3.75,
+  EGP: 48.5,
 };
 
-// دالة أرقام مشرقية سريعة ومحسنة
+// دالة تحويل اختيارية للأرقام العربية
 const toArabicDigits = (val) => {
   if (val === null || val === undefined) return "";
   const arabicDigits = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
@@ -42,7 +41,6 @@ export const SettingsProvider = ({ children }) => {
   const { i18n } = useTranslation();
   const isRtl = (i18n.language || "ar").startsWith("ar");
 
-  // قراءة الإعدادات الفورية المتزامنة مع التخزين المحلي
   const [settings, setSettings] = useState(() => {
     try {
       const stored = localStorage.getItem("luma_admin_settings");
@@ -52,30 +50,6 @@ export const SettingsProvider = ({ children }) => {
     }
   });
 
-  // مزامنة وتطبيق الثيم (الدارك مود) مباشرة على مستوى المستند (html) لتفادي أي وميض
-  useEffect(() => {
-    const root = document.documentElement;
-    const currentTheme = settings.theme || "light";
-    
-    if (currentTheme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    localStorage.setItem("luma_theme", currentTheme);
-  }, [settings.theme]);
-
-  // دالة تبديل الثيم بشكل فوري ونظيف
-  const toggleTheme = useCallback(() => {
-    setSettings((prev) => {
-      const newTheme = prev.theme === "dark" ? "light" : "dark";
-      const updated = { ...prev, theme: newTheme };
-      localStorage.setItem("luma_admin_settings", JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
-
-  // قراءة أسعار الصرف بدون تأخير
   const [exchangeRates, setExchangeRates] = useState(() => {
     try {
       const cached = localStorage.getItem("luma_exchange_rates");
@@ -86,30 +60,30 @@ export const SettingsProvider = ({ children }) => {
         }
       }
     } catch {
-      // استخدام القيم الافتراضية عند الفشل
+      // تجاهل أخطاء التخزين
     }
     return BASE_RATES;
   });
 
-  // تحديث صامت لأسعار الصرف في الخلفية بعد تحميل التطبيق بالكامل
+  // جلب أسعار الصرف الحية في الخلفية دون تعطيل التشغيل
   useEffect(() => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      fetch("https://open.er-api.com/v6/latest/EGP", { signal: controller.signal })
+      fetch("https://open.er-api.com/v6/latest/USD", { signal: controller.signal })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data?.rates) {
             const live = {
-              EGP: 1,
-              USD: data.rates.USD || BASE_RATES.USD,
+              USD: 1,
               SAR: data.rates.SAR || BASE_RATES.SAR,
+              EGP: data.rates.EGP || BASE_RATES.EGP,
             };
             setExchangeRates(live);
             localStorage.setItem("luma_exchange_rates", JSON.stringify({ rates: live, timestamp: Date.now() }));
           }
         })
         .catch(() => {});
-    }, 1500);
+    }, 2000);
 
     return () => {
       clearTimeout(timeoutId);
@@ -117,7 +91,6 @@ export const SettingsProvider = ({ children }) => {
     };
   }, []);
 
-  // دالة تحديث الإعدادات الشاملة
   const updateSettings = useCallback((newSettings) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
@@ -126,21 +99,21 @@ export const SettingsProvider = ({ children }) => {
     });
   }, []);
 
-  // تسمية العملة ديناميكياً حسب اللغة والوضع
+  // رمز وعلامة العملة المحددة
   const currencyLabel = useMemo(() => {
-    const code = settings.currency || "EGP";
+    const code = settings.currency || "USD";
     if (code === "SAR") return isRtl ? "ر.س" : "SAR";
-    if (code === "USD") return isRtl ? "$" : "USD";
-    return isRtl ? "ج.م" : "EGP";
+    if (code === "EGP") return isRtl ? "ج.م" : "EGP";
+    return isRtl ? "$" : "USD";
   }, [settings.currency, isRtl]);
 
-  // تنسيق الأسعار مع التحويل اللحظي للعملات ودعم الأرقام العربية
+  // تنسيق الأسعار مع دعم تحويل العملات الآمن بناءً على عملة الـ Backend (USD)
   const formatPrice = useCallback(
-    (amount, isStoredInBaseEGP = false) => {
+    (amount, convertCurrency = false, useIndicDigits = false) => {
       let num = Number(amount);
-      if (isNaN(num)) return isRtl ? toArabicDigits("0.00") : "0.00";
+      if (isNaN(num)) return useIndicDigits && isRtl ? toArabicDigits("0.00") : "0.00";
 
-      if (isStoredInBaseEGP && settings.currency !== "EGP") {
+      if (convertCurrency && settings.currency !== "USD") {
         const rate = exchangeRates[settings.currency] || 1;
         num = num * rate;
       }
@@ -150,23 +123,21 @@ export const SettingsProvider = ({ children }) => {
         maximumFractionDigits: 2,
       });
 
-      return isRtl ? toArabicDigits(formatted) : formatted;
+      return useIndicDigits && isRtl ? toArabicDigits(formatted) : formatted;
     },
     [settings.currency, exchangeRates, isRtl]
   );
 
-  // تنسيق الأرقام العامة
   const formatDigits = useCallback(
-    (val) => {
+    (val, useIndicDigits = false) => {
       const num = Number(val);
-      if (isNaN(num)) return isRtl ? toArabicDigits("0") : "0";
+      if (isNaN(num)) return useIndicDigits && isRtl ? toArabicDigits("0") : "0";
       const formatted = num.toLocaleString("en-US");
-      return isRtl ? toArabicDigits(formatted) : formatted;
+      return useIndicDigits && isRtl ? toArabicDigits(formatted) : formatted;
     },
     [isRtl]
   );
 
-  // تجميع القيمة المزودة لمنع أي إعادة تصيير (Re-renders) غير مبررة
   const value = useMemo(
     () => ({
       settings,
@@ -175,10 +146,8 @@ export const SettingsProvider = ({ children }) => {
       exchangeRates,
       formatPrice,
       formatDigits,
-      theme: settings.theme || "light",
-      toggleTheme,
     }),
-    [settings, currencyLabel, exchangeRates, formatPrice, formatDigits, toggleTheme, updateSettings]
+    [settings, currencyLabel, exchangeRates, formatPrice, formatDigits, updateSettings]
   );
 
   return (

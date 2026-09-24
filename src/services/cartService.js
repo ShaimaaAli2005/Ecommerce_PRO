@@ -1,7 +1,20 @@
 import axiosInstance from "../api/axiosInstance";
 
 /**
- * جلب سلة المشتريات الحالية للعميل
+ * دالة مساعدة لتجريد وتأكيد معرّف المنتج الصافي
+ * تحمي من تمرير الكائنات كاملة بدلاً من الـ ID وتمنع أخطاء 500
+ */
+const resolveProductId = (target) => {
+  if (!target) return "";
+  if (typeof target === "string") return target.trim();
+  if (typeof target === "object") {
+    return String(target.productId || target.product || target._id || target.id || "").trim();
+  }
+  return String(target).trim();
+};
+
+/**
+ * 1. جلب سلة المشتريات الحالية للعميل
  * GET /carts
  */
 export const getMyCart = async () => {
@@ -9,66 +22,69 @@ export const getMyCart = async () => {
   return response.data;
 };
 
+// اسم بديل للتوافق
+export const getCart = getMyCart;
+
 /**
- * إضافة منتج إلى السلة مع معالجة آمنة لمعرف المنتج
+ * 2. إضافة منتج إلى السلة
  * POST /carts/items
+ * Body: { productId: string, quantity: number }
  */
-export const addToCart = async (productId, quantity = 1) => {
-  let cleanId = productId;
-  if (typeof productId === 'object' && productId !== null) {
-    cleanId = productId._id || productId.id || productId.product || productId.productId;
-  }
-
-  const response = await axiosInstance.post("/carts/items", { 
-    productId: String(cleanId), 
-    quantity: Number(quantity) 
+export const addToCart = async (productOrId, quantity = 1) => {
+  const productId = resolveProductId(productOrId);
+  const response = await axiosInstance.post("/carts/items", {
+    productId,
+    quantity: Math.max(1, Number(quantity) || 1),
   });
   return response.data;
 };
 
 /**
- * تعديل كمية عنصر موجود في السلة
+ * 3. تحديث كمية منتج في السلة
  * PATCH /carts/items
+ * Body: { productId: string, quantity: number }
  */
-export const updateCartItem = async (productId, quantity) => {
-  let cleanId = productId;
-  if (typeof productId === 'object' && productId !== null) {
-    cleanId = productId._id || productId.id || productId.product || productId.productId;
-  }
-
-  const response = await axiosInstance.patch("/carts/items", { 
-    productId: String(cleanId), 
-    quantity: Number(quantity) 
+export const updateCartItemQuantity = async (productOrId, quantity) => {
+  const productId = resolveProductId(productOrId);
+  const response = await axiosInstance.patch("/carts/items", {
+    productId,
+    quantity: Number(quantity),
   });
   return response.data;
 };
 
+// اسم بديل للتوافق
+export const updateCartItem = updateCartItemQuantity;
+
 /**
- * حذف عنصر محدد من السلة
+ * 4. حذف منتج من السلة واسترجاع المخزون
  * DELETE /carts/items/{productId}
  */
-export const removeFromCart = async (productId) => {
-  let cleanId = productId;
-  if (typeof productId === 'object' && productId !== null) {
-    cleanId = productId._id || productId.id || productId.product || productId.productId;
-  }
-
-  const response = await axiosInstance.delete(`/carts/items/${cleanId}`);
+export const removeFromCart = async (productOrId) => {
+  const productId = resolveProductId(productOrId);
+  const response = await axiosInstance.delete(`/carts/items/${productId}`);
   return response.data;
 };
 
 /**
- * تطبيق كوبون خصم ترويجي
+ * 5. تطبيق كود كوبون خصم ترويجي
  * POST /carts/coupon
+ * Body: { code: string }
  */
-export const applyCoupon = async (coupon) => {
-  const codeValue = typeof coupon === 'object' ? (coupon.code || coupon.coupon) : coupon;
-  const response = await axiosInstance.post("/carts/coupon", { code: String(codeValue).trim() });
+export const applyCoupon = async (couponData) => {
+  const code =
+    typeof couponData === "object" && couponData !== null
+      ? couponData.code || couponData.coupon
+      : couponData;
+
+  const response = await axiosInstance.post("/carts/coupon", {
+    code: String(code || "").trim().toUpperCase(),
+  });
   return response.data;
 };
 
 /**
- * إزالة كوبون الخصم من السلة
+ * 6. إزالة الكوبون المطبق من السلة
  * DELETE /carts/coupon
  */
 export const removeCoupon = async () => {
@@ -77,7 +93,7 @@ export const removeCoupon = async () => {
 };
 
 /**
- * تفريغ سلة التسوق بالكامل
+ * 7. تفريغ السلة بالكامل وحذف الكوبون
  * DELETE /carts/clear
  */
 export const clearCart = async () => {
@@ -87,8 +103,10 @@ export const clearCart = async () => {
 
 export const cartService = {
   getMyCart,
+  getCart,
   addToCart,
   updateCartItem,
+  updateCartItemQuantity,
   removeFromCart,
   applyCoupon,
   removeCoupon,

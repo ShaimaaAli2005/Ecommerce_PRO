@@ -11,13 +11,14 @@
     --color-secondary-muted: #7b8190;
     --color-accent-base: #e89a5b;
     --color-accent-hover: #d98341;
-    --color-surface-base: #f7f5f0;
+    --color-surface-base: #faf8f5;
     --color-surface-card: #ffffff;
-    --color-text-main: #1f2937;
+    --color-text-main: #0b132b;
     --color-text-inverse: #f8fafc;
     --color-success: #4f8a70;
     --color-error: #c95c5c;
     --color-border: #e5e7eb;
+    color-scheme: light;
   }
 
   .dark {
@@ -28,23 +29,51 @@
     --color-secondary-muted: #64748b;
     --color-accent-base: #e89a5b;
     --color-accent-hover: #d98341;
-    --color-surface-base: #0f172a;
-    --color-surface-card: #17233c;
+    --color-surface-base: #070d1e;
+    --color-surface-card: #121c38;
     --color-text-main: #f8fafc;
-    --color-text-inverse: #0f172a;
-    --color-border: #1e293b;
+    --color-text-inverse: #0b132b;
+    --color-border: rgba(255, 255, 255, 0.1);
+    color-scheme: dark;
+  }
+
+  html {
+    scrollbar-gutter: stable;
   }
 
   body {
     background-color: var(--color-surface-base);
     color: var(--color-text-main);
-    font-family: "Inter", "Readex Pro", sans-serif;
+    font-family: "Poppins", "Inter", "Readex Pro", sans-serif;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
-    transition:
-      background-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
-      color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* 
+    الحل الجذري: تطبيق الترانزيشن السلس على الحاويات والخلفيات فقط
+    مع استثناء النصوص لمنع الوميض واختلال التباين اللوني
+  */
+  body,
+  header,
+  nav,
+  main,
+  footer,
+  section,
+  article,
+  aside,
+  div {
+    transition: background-color 150ms ease, border-color 150ms ease;
+  }
+
+  /* إلغاء ترانزيشن النصوص والتدرجات لمنع الرعشة الفجائية */
+  h1, h2, h3, h4, h5, h6, p, span, a, strong, b, label,
+  .bg-clip-text,
+  [class*="text-transparent"],
+  img, svg, video, canvas,
+  [class*="animate-"],
+  .animate-shimmer::after {
+    transition: none !important;
   }
 }
 
