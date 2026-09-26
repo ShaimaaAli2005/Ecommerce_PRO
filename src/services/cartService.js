@@ -2,13 +2,20 @@ import axiosInstance from "../api/axiosInstance";
 
 /**
  * دالة مساعدة لتجريد وتأكيد معرّف المنتج الصافي
- * تحمي من تمرير الكائنات كاملة بدلاً من الـ ID وتمنع أخطاء 500
  */
 const resolveProductId = (target) => {
   if (!target) return "";
   if (typeof target === "string") return target.trim();
   if (typeof target === "object") {
-    return String(target.productId || target.product || target._id || target.id || "").trim();
+    return String(
+      target.productId || 
+      target.product?._id || 
+      target.product?.id || 
+      target.product || 
+      target._id || 
+      target.id || 
+      ""
+    ).trim();
   }
   return String(target).trim();
 };
@@ -22,7 +29,6 @@ export const getMyCart = async () => {
   return response.data;
 };
 
-// اسم بديل للتوافق
 export const getCart = getMyCart;
 
 /**
@@ -53,7 +59,6 @@ export const updateCartItemQuantity = async (productOrId, quantity) => {
   return response.data;
 };
 
-// اسم بديل للتوافق
 export const updateCartItem = updateCartItemQuantity;
 
 /**

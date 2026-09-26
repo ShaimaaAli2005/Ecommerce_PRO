@@ -31,6 +31,7 @@ const StoreProductView = lazy(() => import("../pages/store/products/StoreProduct
 const WishlistPage = lazy(() => import("../pages/store/wishlist/WishlistPage"));
 const CartPage = lazy(() => import("../pages/store/cart/CartPage"));
 const CheckoutPage = lazy(() => import("../pages/store/checkout/CheckoutPage"));
+const MyOrderDetail = lazy(() => import("../pages/store/orders/MyOrderDetail"));
 const OrderSuccess = lazy(() => import("../pages/store/orders/OrderSuccess"));
 const MyOrdersPage = lazy(() => import("../pages/store/orders/MyOrdersPage"));
 const ProfilePage = lazy(() => import("../pages/store/profile/ProfilePage"));
@@ -45,34 +46,44 @@ export const AppRoutes = () => {
 
         {/* مسارات لوحة التحكم الإدارية المحمية */}
         <Route
-        path="/admin"
-        element={
-            <ProtectedRoute requiredRole="admin">
-            <AdminLayout />
+          path="/admin"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <AdminLayout />
             </ProtectedRoute>
-        }
+          }
         >
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardOverview />} />
-        <Route path="products" element={<ProductsList />} />
-        <Route path="products/add" element={<AddProduct />} />
-        <Route path="products/edit/:id" element={<EditProduct />} />
-        <Route path="products/:id" element={<ProductDetails />} />
-        <Route path="orders" element={<AdminOrdersPage />} />
-        <Route path="orders/:id" element={<AdminOrderDetail />} />
-        <Route path="carts" element={<AdminCartsPage />} />
-        <Route path="users" element={<UsersListPage />} />
-        <Route path="users/:id" element={<AdminUserDetail />} />
-        <Route path="wishlist" element={<AdminWishlistPage />} />
-        <Route path="settings" element={<AdminSettingsPage />} />
-        <Route path="categories" element={<CategoriesPage />} /> {/* ← تم تصحيح المسار بنجاح */}
+          <Route index element={<DashboardOverview />} />
+          <Route path="dashboard" element={<DashboardOverview />} />
+          <Route path="products" element={<ProductsList />} />
+          <Route path="products/add" element={<AddProduct />} />
+          <Route path="products/edit/:id" element={<EditProduct />} />
+          <Route path="products/:id" element={<ProductDetails />} />
+          <Route path="orders" element={<AdminOrdersPage />} />
+          <Route path="orders/:id" element={<AdminOrderDetail />} />
+          <Route path="categories" element={<CategoriesPage />} />
+          <Route path="carts" element={<AdminCartsPage />} />
+          <Route path="users" element={<UsersListPage />} />
+          <Route path="users/:id" element={<AdminUserDetail />} />
+          <Route path="wishlist" element={<AdminWishlistPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
 
         {/* مسارات المتجر */}
         <Route element={<StoreLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/orders" element={<MyOrdersPage />} />
+          <Route path="/my-orders" element={<MyOrdersPage />} />
+          <Route path="/my-orders/:id" element={<MyOrderDetail />} />
+          <Route path="/my-orders/:orderId" element={<MyOrderDetail />} />
+          <Route path="/orders/:id" element={<MyOrderDetail />} />
+
+          {/* مسارات الكتالوج والتسوق */}
           <Route path="/products" element={<StoreCatalog />} />
+          <Route path="/catalog" element={<StoreCatalog />} />
+          <Route path="/collections" element={<StoreCatalog />} />
           <Route path="/products/:id" element={<StoreProductView />} />
+
           <Route path="/cart" element={<CartPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/login" element={<Login />} />
@@ -81,7 +92,6 @@ export const AppRoutes = () => {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/my-orders" element={<MyOrdersPage />} />
         </Route>
 
         {/* Not Found */}

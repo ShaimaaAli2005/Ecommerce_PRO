@@ -850,6 +850,35 @@
       "delivered": "Delivered",
       "cancelled": "Cancelled"
     },
+    "order_detail": {
+      "back": "Back to My Orders",
+      "badge": "Official Order Dossier",
+      "order_number": "Order Ref",
+      "placed_on": "Placed on",
+      "status_label": "Order Status",
+      "items_list": "Acquired Pieces",
+      "shipping_info": "Delivery Destination",
+      "payment_info": "Payment & Settlement",
+      "summary": "Financial Settlement",
+      "cancel_btn": "Cancel Order",
+      "cancelling": "Cancelling...",
+      "cancel_confirm": "Are you sure you want to cancel this order?",
+      "cancel_success": "Order cancelled successfully",
+      "cancel_error": "Cannot cancel order in current state",
+      "fetch_error": "Failed to retrieve order details",
+      "shipping_fee": "Insured Shipping",
+      "tax": "Estimated Taxes",
+      "discount": "Promotional Reduction",
+      "subtotal": "Subtotal",
+      "total": "Total Settlement",
+      "timeline": {
+        "placed": "Order Placed",
+        "confirmed": "Confirmed",
+        "shipped": "In Transit",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled"
+      }
+    },
     "product": {
       "quantity": "Quantity",
       "added_success": "Added to Cart ✓",

@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, AlertCircle, Loader2, ArrowRight, ArrowLeft, Globe, Moon, Sun } from "lucide-react";
-import api from "../../../api/axiosInstance";
+import { authService } from "../../../services/authService";
+import { useAuth } from "../../../context/AuthContext";
 
 export const AdminLogin = () => {
   const { t, i18n } = useTranslation();
   const isRtl = (i18n.language || "ar").startsWith("ar");
   const navigate = useNavigate();
+  const { loginUser } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,48 +40,45 @@ export const AdminLogin = () => {
     e.preventDefault();
     setErrorMessage(null);
 
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) {
-      setErrorMessage(t("admin.admin_login.email_password_required"));
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      setErrorMessage(t("admin.admin_login.email_password_required", "البريد الإلكتروني وكلمة المرور مطلوبان"));
       return;
     }
 
     try {
       setLoading(true);
 
-      const res = await api.post("/auth/login", {
-        email: trimmedEmail,
-        password: password,
-      });
+      // استخدام الدالة الرسمية من authService لضمان التوافق التام مع Swagger والـ Schema
+      const data = await authService.login(cleanEmail, cleanPassword);
 
-      const token = res.data?.token;
-      const user = res.data?.user || res.data?.data;
+      const token = data?.token;
+      const user = data?.user || data?.data;
 
       if (!token) {
-        throw new Error(t("admin.admin_login.no_token"));
+        throw new Error(t("admin.admin_login.no_token", "لم يتم استلام توكن المصادقة من السيرفر"));
       }
 
+      // التحقق من صلاحية الإدارة
       if (user?.role && user.role !== "admin") {
-        setErrorMessage(t("admin.admin_login.admin_access_denied"));
+        setErrorMessage(t("admin.admin_login.admin_access_denied", "هذا الحساب لا يملك صلاحيات المشرف"));
         setLoading(false);
         return;
       }
 
-      // ─── التعديل هنا: تخزين التوكن في admin_token و token لضمان توافقه مع الـ axiosInstance الجديد ───
-      localStorage.setItem("admin_token", token);
-      localStorage.setItem("token", token); 
-      
-      if (user) {
-        localStorage.setItem("user", JSON.stringify(user));
-      }
+      // تحديث سياق التطبيق العام AuthContext ليصبح المستخدم مسجلاً رسمياً
+      loginUser(user, token);
 
+      // التوجيه المباشر إلى لوحة الإحصائيات
       navigate("/admin/dashboard", { replace: true });
     } catch (err) {
       console.error("Login request error:", err);
       const serverMsg =
         err.response?.data?.message ||
         err.response?.data?.error ||
-        t("admin.admin_login.invalid_credentials");
+        t("admin.admin_login.invalid_credentials", "بيانات الاعتماد غير صحيحة، يرجى التأكد من البريد وكلمة المرور");
       setErrorMessage(serverMsg);
     } finally {
       setLoading(false);
@@ -131,7 +130,7 @@ export const AdminLogin = () => {
                 LUMA
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#E89A5B]/20 text-[#E89A5B] border border-[#E89A5B]/30 backdrop-blur-md">
-                {t("admin.admin_login.brand_badge")}
+                {t("admin.admin_login.brand_badge", "ELITE ATELIER")}
               </span>
             </div>
             <div className="h-1 w-10 bg-[#E89A5B] mt-2.5 rounded-full shadow-sm"></div>
@@ -139,10 +138,10 @@ export const AdminLogin = () => {
 
           <div className="relative z-10 my-8 backdrop-blur-md bg-black/25 p-5 rounded-2xl border border-white/10 shadow-lg">
             <span className="text-[11px] font-bold tracking-widest text-[#E89A5B] uppercase block mb-1.5 drop-shadow-sm">
-              {t("admin.admin_login.curated_commerce_tag")}
+              {t("admin.admin_login.curated_commerce_tag", "LUXURY COMMERCE ENGINE")}
             </span>
             <p className="text-lg sm:text-xl font-light leading-relaxed font-['Poppins',sans-serif] text-white/95">
-              {t("admin.admin_login.curated_commerce_desc")}
+              {t("admin.admin_login.curated_commerce_desc", "منظومة الإدارة المتكاملة للتحكم في المقتنيات، مسارات الإمداد، وإحصائيات المبيعات اللحظية.")}
             </p>
           </div>
 
@@ -152,10 +151,10 @@ export const AdminLogin = () => {
             </div>
             <div>
               <p className="text-xs font-bold text-white tracking-wide">
-                {t("admin.admin_login.control_deck_title")}
+                {t("admin.admin_login.control_deck_title", "الإصدار المعتمد 2026")}
               </p>
               <p className="text-[12px] text-white/80">
-                {t("admin.admin_login.control_deck_desc")}
+                {t("admin.admin_login.control_deck_desc", "جلسة مشفرة ومؤمنة بالكامل للمشرفين")}
               </p>
             </div>
           </div>
@@ -167,10 +166,10 @@ export const AdminLogin = () => {
             
             <div className="mb-8">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B132B] dark:text-white tracking-tight font-['Poppins',sans-serif]">
-                {t("admin.admin_login.signin_title")}
+                {t("admin.admin_login.signin_title", "تسجيل دخول المشرف")}
               </h2>
               <p className="text-sm text-[#7B8190] dark:text-slate-400 mt-2 leading-relaxed">
-                {t("admin.admin_login.signin_subtitle")}
+                {t("admin.admin_login.signin_subtitle", "أدخل بيانات حساب الإدارة للمتابعة إلى لوحة التحكم")}
               </p>
             </div>
 
@@ -187,7 +186,7 @@ export const AdminLogin = () => {
                   htmlFor="email"
                   className="block text-[11px] font-bold uppercase tracking-wider text-[#1F2937] dark:text-slate-300 mb-1.5"
                 >
-                  {t("auth.email")}
+                  {t("auth.email", "البريد الإلكتروني")}
                 </label>
                 <input
                   id="email"
@@ -205,7 +204,7 @@ export const AdminLogin = () => {
                   htmlFor="password"
                   className="block text-[11px] font-bold uppercase tracking-wider text-[#1F2937] dark:text-slate-300 mb-1.5"
                 >
-                  {t("auth.password")}
+                  {t("auth.password", "كلمة المرور")}
                 </label>
                 <div className="relative">
                   <input
@@ -235,11 +234,11 @@ export const AdminLogin = () => {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{t("admin.admin_login.authenticating")}</span>
+                    <span>{t("admin.admin_login.authenticating", "جاري التحقق...")}</span>
                   </>
                 ) : (
                   <>
-                    <span>{t("admin.admin_login.submit_button")}</span>
+                    <span>{t("admin.admin_login.submit_button", "تسجيل الدخول للوحة التحكم")}</span>
                     {isRtl ? (
                       <ArrowLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-1" />
                     ) : (

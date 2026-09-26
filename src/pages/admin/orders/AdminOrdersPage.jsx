@@ -673,6 +673,7 @@ export const AdminOrdersPage = () => {
                         </div>
                       </td>
 
+                      
                       {/* المبلغ والدفع */}
                       <td className="px-6 py-4">
                         <p className="font-black text-sm text-[#0B132B] dark:text-[#E89A5B] font-['Poppins',sans-serif]">

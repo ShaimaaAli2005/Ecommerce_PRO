@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { DollarSign, ShoppingCart, ShoppingBag, Clock, ArrowUpRight } from "lucide-react";
 import { adminOrderService } from "../../../services/adminOrderService";
-import KpiCard from "./components/KpiCard";
+import KpiCard from "../dashboard/components/KpiCard";
 import SkeletonLoader from "../../../components/loader/SkeletonLoader";
 import Badge from "../../../components/common/Badge";
 import { useSettings } from "../../../context/SettingsContext";
