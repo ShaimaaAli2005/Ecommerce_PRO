@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ShieldCheck, ArrowRight, ArrowLeft, Loader2, RotateCcw } from 'lucide-react';
-import { OtpInputGroup } from '../../../components/common/OtpInputGroup';
+import OtpInputGroup from './components/OtpInputGroup';
 import authService from '../../../services/authService';
 import { useAuth } from '../../../context/AuthContext';
 import toast from 'react-hot-toast';

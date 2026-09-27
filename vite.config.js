@@ -34,9 +34,6 @@ export default defineConfig({
     chunkSizeWarningLimit: 500,
   },
 
-  alias: {
-  "@": path.resolve(__dirname, "./src"),
-  },
 
   server: {
     port: 3000,
