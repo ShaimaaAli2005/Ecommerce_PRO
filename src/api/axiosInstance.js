@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "/api", // ضروري جداً ليمر الطلب عبر ملف الـ Proxy الداخلي
+  baseURL: "/api",
   headers: {
     "Content-Type": "application/json",
   },
