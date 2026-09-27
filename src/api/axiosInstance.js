@@ -1,17 +1,16 @@
 import axios from "axios";
 
-// وضع رابط السيرفر صريحاً ومباشراً لتجنب أي مشاكل في قراءة متغيرات البيئة على Vercel
-const API_BASE_URL = "https://e-commerce-api-3wara.vercel.app";
+const PROXY_URL = "https://corsproxy.io/?";
+const TARGET_API = "https://e-commerce-api-3wara.vercel.app";
 
 const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: PROXY_URL + encodeURIComponent(TARGET_API),
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true,
+  withCredentials: false, 
 });
 
-// اعتراض الطلبات لحقن التوكن في حال توفره احتياطياً
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -23,7 +22,6 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// اعتراض الاستجابات لمعالجة انتهاء الجلسة 401 تلقائياً
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
