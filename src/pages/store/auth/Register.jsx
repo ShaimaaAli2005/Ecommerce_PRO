@@ -29,7 +29,6 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
-  // إدارة مؤقت إعادة إرسال OTP
   useEffect(() => {
     let interval = null;
     if (resendTimer > 0) {
@@ -45,7 +44,6 @@ const Register = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // معايير قوة كلمة المرور
   const passwordCriteria = {
     length: formData.password.length >= 8,
     upper: /[A-Z]/.test(formData.password),
@@ -112,7 +110,6 @@ const Register = () => {
       if (res?.success !== false) {
         toast.success(t('register.success.accountCreated', 'Account created successfully! Welcome to LUMA.'));
         
-        // تسجيل الدخول الفوري إذا وفر السيرفر جلسة
         if (res?.token || res?.user) {
           loginUser(res);
           navigate('/', { replace: true });
@@ -136,7 +133,6 @@ const Register = () => {
     >
       <div className="w-full max-w-5xl bg-white dark:bg-[#111A35] md:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.5)] border border-[#E5E7EB] dark:border-white/10 overflow-hidden flex flex-col md:flex-row min-h-[640px] transition-colors duration-300">
         
-        {/* الجانب البصري الفاخر */}
         <div className="relative md:w-5/12 bg-[#0B132B] text-white p-8 md:p-12 flex flex-col justify-between overflow-hidden">
           <div className="absolute inset-0 z-0 overflow-hidden">
             <img
@@ -180,7 +176,6 @@ const Register = () => {
           </div>
         </div>
 
-        {/* الجانب الأيمن (النموذج) */}
         <div className="md:w-7/12 p-8 sm:p-12 lg:p-14 flex flex-col justify-center bg-white dark:bg-[#111A35] transition-colors duration-300">
           <div className="max-w-md w-full mx-auto">
             
@@ -269,7 +264,6 @@ const Register = () => {
                     </button>
                   </div>
 
-                  {/* قائمة التحقق المرئية من شروط كلمة المرور */}
                   {formData.password.length > 0 && (
                     <div className="grid grid-cols-2 gap-1 mt-2 text-[10px] text-slate-500 dark:text-slate-400">
                       <span className={`flex items-center gap-1 ${passwordCriteria.length ? 'text-emerald-500 font-bold' : ''}`}>
@@ -320,7 +314,6 @@ const Register = () => {
                     <KeyRound className="w-4 h-4 text-[#E89A5B]" />
                   </div>
 
-                  {/* استخدام مكون OtpInputGroup المعتمد لسهولة الإدخال */}
                   <OtpInputGroup
                     length={6}
                     value={formData.otp}

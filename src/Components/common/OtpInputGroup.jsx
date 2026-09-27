@@ -9,13 +9,11 @@ export const OtpInputGroup = ({
 }) => {
   const inputRefs = useRef([]);
 
-  // تحويل القيمة النصية إلى مصفوفة خانات
   const digits = value.split('').slice(0, length);
   while (digits.length < length) {
     digits.push('');
   }
 
-  // تركيز تلقائي على الخانة الأولى عند التحميل
   useEffect(() => {
     if (autoFocus && inputRefs.current[0]) {
       inputRefs.current[0].focus();
@@ -24,17 +22,14 @@ export const OtpInputGroup = ({
 
   const handleChange = (e, index) => {
     const val = e.target.value;
-    // السماح بأرقام فقط
     if (val && !/^\d+$/.test(val)) return;
 
     const newDigits = [...digits];
-    // أخذ آخر حرف مدخل في حال كتب أكثر من حرف
     newDigits[index] = val.slice(-1);
     
     const combined = newDigits.join('');
     onChange?.(combined);
 
-    // الانتقال التلقائي للخانة التالية
     if (val && index < length - 1) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -43,13 +38,11 @@ export const OtpInputGroup = ({
   const handleKeyDown = (e, index) => {
     if (e.key === 'Backspace') {
       if (!digits[index] && index > 0) {
-        // إذا كانت الخانة فارغة، نرجع للخانة السابقة ونمسحها
         const newDigits = [...digits];
         newDigits[index - 1] = '';
         onChange?.(newDigits.join(''));
         inputRefs.current[index - 1]?.focus();
       } else if (digits[index]) {
-        // مسح الخانة الحالية
         const newDigits = [...digits];
         newDigits[index] = '';
         onChange?.(newDigits.join(''));
