@@ -4,7 +4,7 @@ const API_BASE_URL =
   import.meta.env.VITE_API_URL || "https://e-commerce-api-3wara.vercel.app";
 
 const axiosInstance = axios.create({
-  baseURL: "/api",
+  baseURL: API_BASE_URL, // هنا التعديل الجذري ليتم توجيه الطلبات للسيرفر الحقيقي مباشرة
   headers: {
     "Content-Type": "application/json",
   },
@@ -28,7 +28,6 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // تجنب إعادة التوجيه في حال كان الطلب نفسه فحص جلسة أو محاولة تسجيل دخول
       const isAuthCheck = error.config.url?.includes("/auth/me");
       const isLogin = error.config.url?.includes("/auth/login");
 
