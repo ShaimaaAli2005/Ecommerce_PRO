@@ -1,15 +1,15 @@
 import axios from "axios";
 
-// استخدام وسيط مخصص لتجاوز حظر الـ CORS للطلبات المباشرة
-const CORS_PROXY = "https://corsproxy.io/?";
+// استخدام وسيط مدمج يوجه الطلب مباشرة للسيرفر الأصلي ويتجاوز قيود الـ CORS والـ 404
+const PROXY_PREFIX = "https://api.allorigins.win/raw?url=";
 const TARGET_API = "https://e-commerce-api-3wara.vercel.app";
 
 const axiosInstance = axios.create({
-  baseURL: CORS_PROXY + encodeURIComponent(TARGET_API),
+  baseURL: TARGET_API, // العودة للرابط الأصلي المباشر
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: false, // يجب تعطيلها عند استخدام الوسيط الخارجي لمنع تعارض الهيدرز
+  withCredentials: false,
 });
 
 axiosInstance.interceptors.request.use(
@@ -21,24 +21,6 @@ axiosInstance.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
-);
-
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      const isAuthCheck = error.config.url?.includes("/auth/me");
-      const isLogin = error.config.url?.includes("/auth/login");
-
-      if (!isAuthCheck && !isLogin) {
-        localStorage.removeItem("token");
-        if (window.location.pathname.startsWith("/admin")) {
-          window.location.href = "/admin/login";
-        }
-      }
-    }
-    return Promise.reject(error);
-  }
 );
 
 export default axiosInstance;
