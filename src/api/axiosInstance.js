@@ -1,15 +1,14 @@
 import axios from "axios";
 
-// استخدام وسيط مدمج يوجه الطلب مباشرة للسيرفر الأصلي ويتجاوز قيود الـ CORS والـ 404
-const PROXY_PREFIX = "https://api.allorigins.win/raw?url=";
+// الرابط المباشر والسليم للسيرفر الذي يعمل لديك بدون أي وسائط أو تعقيدات
 const TARGET_API = "https://e-commerce-api-3wara.vercel.app";
 
 const axiosInstance = axios.create({
-  baseURL: TARGET_API, // العودة للرابط الأصلي المباشر
+  baseURL: TARGET_API,
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: false,
+  withCredentials: true,
 });
 
 axiosInstance.interceptors.request.use(
