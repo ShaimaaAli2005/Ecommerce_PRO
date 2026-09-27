@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "/api", // يوجه الطلب لملف الـ Serverless Proxy على Vercel
+  baseURL: "/api", // ضروري جداً ليمر الطلب عبر ملف الـ Proxy الداخلي
   headers: {
     "Content-Type": "application/json",
   },
