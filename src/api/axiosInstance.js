@@ -1,14 +1,14 @@
 import axios from "axios";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://e-commerce-api-3wara.vercel.app";
+// وضع رابط السيرفر صريحاً ومباشراً لتجنب أي مشاكل في قراءة متغيرات البيئة على Vercel
+const API_BASE_URL = "https://e-commerce-api-3wara.vercel.app";
 
 const axiosInstance = axios.create({
-  baseURL: API_BASE_URL, // هنا التعديل الجذري ليتم توجيه الطلبات للسيرفر الحقيقي مباشرة
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // ضروري لدعم httpOnly cookies للتوثيق وجلسات السيرفر
+  withCredentials: true,
 });
 
 // اعتراض الطلبات لحقن التوكن في حال توفره احتياطياً
