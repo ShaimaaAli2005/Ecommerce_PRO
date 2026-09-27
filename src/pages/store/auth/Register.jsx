@@ -5,7 +5,7 @@ import { Eye, EyeOff, Sparkles, KeyRound, RotateCcw, Loader2, Check, X, ArrowRig
 import toast from 'react-hot-toast';
 import authService from '../../../services/authService';
 import { useAuth } from '../../../context/AuthContext';
-import OtpInputGroup from '../../../components/common/OtpInputGroup';
+import OtpInputGroup from '../../../../src/components/common/OtpInputGroup';
 
 const Register = () => {
   const { t, i18n } = useTranslation();
