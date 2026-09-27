@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, Sparkles, KeyRound, RotateCcw, ArrowRight, ArrowLeft, Loader2, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import authService from '../../../services/authService';
-import OtpInputGroup from '../../../../src/components/common/OtpInputGroup';
+import OtpInputGroup from '../../../components/common/OtpInputGroup.jsx';
 
 const ForgotPassword = () => {
   const { t, i18n } = useTranslation();
