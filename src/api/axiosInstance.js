@@ -1,6 +1,5 @@
 import axios from "axios";
 
-// الرابط المباشر والسليم للسيرفر الذي يعمل لديك بدون أي وسائط أو تعقيدات
 const TARGET_API = "https://e-commerce-api-3wara.vercel.app";
 
 const axiosInstance = axios.create({
