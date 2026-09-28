@@ -1,9 +1,10 @@
 import axios from "axios";
 
-const TARGET_API = "https://e-commerce-api-3wara.vercel.app";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "https://e-commerce-api-3wara.vercel.app";
 
 const axiosInstance = axios.create({
-  baseURL: TARGET_API,
+  baseURL: "/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -19,6 +20,25 @@ axiosInstance.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+
+      const isAuthCheck = error.config.url?.includes("/auth/me");
+      const isLogin = error.config.url?.includes("/auth/login");
+
+      if (!isAuthCheck && !isLogin) {
+        localStorage.removeItem("token");
+        if (window.location.pathname.startsWith("/admin")) {
+          window.location.href = "/admin/login";
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
 );
 
 export default axiosInstance;
